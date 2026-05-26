@@ -1,45 +1,116 @@
 <template>
   <RippleButton id="RippleButton" @click="emit('click')" style="background-color: rgba(var(--text-color), 0.05);">
-    <div style="display: flex; align-items: center; gap: 15px; padding: 0 10px;">
-      <div style="font-variation-settings: 'FILL' 0, 'wght' 100;">
+    <div class="item-content">
+      <div class="item-icon">
         <span class="material-symbols-outlined">{{ icon }}</span>
       </div>
-      <div style="text-align: left;">
+      <div class="item-text">
         <div class="ripple-button-title">{{ title }}</div>
-        <div class="ripple-button-title" style="font-size: 12px; color: rgba(var(--text-color), 0.5);">{{ desc }}</div>
+        <div class="ripple-button-title item-desc">{{ desc }}</div>
+      </div>
+      <div v-if="type && type !== 'default'" class="item-control" @click.stop>
+        <label v-if="type === 'toggle'" class="switch">
+          <input type="checkbox" :checked="Boolean(value)" @change="handleToggle">
+          <span class="switch-track"></span>
+        </label>
+
+        <select v-else-if="type === 'select'" class="select" :value="String(value ?? '')" @change="handleSelect">
+          <option v-for="option in normalizedOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+
+        <input v-else-if="type === 'input'" class="input" :value="String(value ?? '')" :placeholder="placeholder"
+          @input="handleInput">
+
+        <button v-else-if="type === 'button'" class="action-button" type="button" @click="emit('click')">
+          运行
+        </button>
       </div>
     </div>
   </RippleButton>
-
 </template>
+
 <script setup lang="ts">
-
+import { computed } from 'vue';
 import RippleButton from '#components/common/RippleButton.vue';
-const emit = defineEmits(['click']);
 
-defineProps({
-  icon: {
-    type: String,
-    required: true,
-    default: 'home'
-  },
-  title: {
-    type: String,
-    required: true,
-    default: ''
-  },
-  desc: {
-    type: String,
-    required: true,
-    default: ''
-  }
-})
+type ItemType = 'default' | 'toggle' | 'select' | 'input' | 'button';
+type SelectOption = string | { label: string; value: string };
 
+const props = withDefaults(defineProps<{
+  icon: string;
+  title: string;
+  desc: string;
+  type?: ItemType;
+  value?: string | boolean | number;
+  options?: SelectOption[];
+  placeholder?: string;
+}>(), {
+  type: 'default',
+  value: '',
+  options: () => [],
+  placeholder: '',
+});
+
+const emit = defineEmits<{
+  (event: 'click'): void;
+  (event: 'update:value', value: string | boolean): void;
+}>();
+
+const normalizedOptions = computed(() =>
+  props.options.map(option => typeof option === 'string'
+    ? { label: option, value: option }
+    : option
+  )
+);
+
+function handleToggle(event: Event) {
+  emit('update:value', (event.target as HTMLInputElement).checked);
+}
+
+function handleSelect(event: Event) {
+  emit('update:value', (event.target as HTMLSelectElement).value);
+}
+
+function handleInput(event: Event) {
+  emit('update:value', (event.target as HTMLInputElement).value);
+}
 </script>
+
 <style scoped>
+.item-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 0 10px;
+  width: 100%;
+}
+
+.item-icon {
+  font-variation-settings: 'FILL' 0, 'wght' 100;
+}
+
+.item-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.item-control {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
 .ripple-button-title {
   font-size: 13px;
   margin-top: 5px;
+}
+
+.item-desc {
+  color: rgba(var(--text-color), 0.5);
+  font-size: 12px;
 }
 
 #RippleButton {
@@ -54,5 +125,68 @@ defineProps({
     'wght' 100,
     'GRAD' 0,
     'opsz' 24
+}
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  width: 42px;
+  height: 24px;
+}
+
+.switch input {
+  display: none;
+}
+
+.switch-track {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(var(--text-color), 0.16);
+  transition: background 0.2s ease;
+}
+
+.switch-track::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  top: 3px;
+  left: 3px;
+  border-radius: 50%;
+  background: rgb(var(--text-color));
+  transition: transform 0.2s ease;
+}
+
+.switch input:checked+.switch-track {
+  background: rgba(var(--primary-color), 0.55);
+}
+
+.switch input:checked+.switch-track::after {
+  transform: translateX(18px);
+}
+
+.select,
+.input {
+  min-width: 150px;
+  border: 1px solid rgba(var(--text-color), 0.12);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: rgb(var(--text-color));
+  background: rgba(var(--background-color), 0.55);
+  outline: none;
+}
+
+.input {
+  width: 220px;
+}
+
+.action-button {
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: rgb(var(--text-color));
+  background: rgba(var(--primary-color), 0.16);
+  cursor: pointer;
 }
 </style>

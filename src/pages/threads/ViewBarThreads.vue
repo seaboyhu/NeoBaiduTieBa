@@ -4,6 +4,7 @@ import { useApiStore } from '@/stores';
 import PinnedThread from '@/components/thread/PinnedThread.vue';
 import Thread from '@/components/thread/Thread.vue';
 import BarInfoCard from '@/components/user/BarInfoCard.vue';
+import domToImage from 'dom-to-image';
 
 interface Props {
   barName: string;
@@ -70,9 +71,39 @@ const emit = defineEmits<Emits>();
 // Injects
 const openImageViewer = inject<(url: string) => void>('openImageViewer');
 const updateTabMeta = inject<(info: { key: string | number; title: string; icon: string }) => void>('updateTabMeta');
+const sendToast = inject<(title: string, duration: number) => void>('sendToast');
 
 // State
 const barDetailVisible: Ref<boolean> = ref<boolean>(false);
+const captureRef = ref<HTMLElement | null>(null);
+
+const handleShare = async () => {
+  if (!captureRef.value || !openImageViewer) return;
+  try {
+    const dataUrl = await domToImage.toPng(captureRef.value, {
+      bgcolor: '#1e1e1e',
+      filter: (node: Node) => {
+        // Skip external stylesheets and CORS-restricted images
+        if (node instanceof HTMLLinkElement && node.rel === 'stylesheet') {
+          return !node.href.includes('fonts.googleapis.com');
+        }
+        if (node instanceof HTMLImageElement) {
+          // Allow data URLs and same-origin images
+          return node.src.startsWith('data:') ||
+            node.src.startsWith(window.location.origin) ||
+            node.hasAttribute('crossorigin');
+        }
+        return true;
+      },
+      imagePlaceholder: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMzMzMiLz48L3N2Zz4='
+    });
+    openImageViewer(dataUrl);
+  } catch (error) {
+    console.error('Failed to generate share image:', error);
+    sendToast?.('生成分享图片失败', 2000);
+  }
+};
+
 const returnData: Ref<ForumData> = ref<ForumData>({
   forum: { name: '', avatar: '' },
   thread_list: [],
@@ -213,9 +244,9 @@ onMounted(async (): Promise<void> => {
 </script>
 
 <template>
-  <Container @yscroll="onScroll">
+  <Container :scroll-key="`bar-${props.key_}`" @yscroll="onScroll">
     <transition name="fade1">
-      <div v-if="!isLoading">
+      <div v-if="!isLoading" ref="captureRef">
         <div class="bar-banner">
           <div class="image-container">
             <img class="background-image" :src="returnData.forum.avatar" referrerpolicy="no-referrer">
@@ -225,7 +256,14 @@ onMounted(async (): Promise<void> => {
               @click="openImageViewer(returnData.forum.avatar)">
             <img v-else class="avatar" :src="returnData.forum.avatar" referrerpolicy="no-referrer">
             <div>
-              <div class="title">{{ returnData.forum.name }}吧</div>
+              <div class="title">
+                {{ returnData.forum.name }}吧
+                <RippleButton
+                  style="padding: 4px; border-radius: 50%; background: transparent; box-shadow: none; vertical-align: middle;"
+                  @click.stop="handleShare" title="生成长截图">
+                  <span class="material-symbols-outlined" style="font-size: 20px;">share</span>
+                </RippleButton>
+              </div>
               <div class="description">{{ returnData.forum.slogan || '暂无简介' }}</div>
               <div>
                 登录以签到

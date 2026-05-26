@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "fs:allow-write",
     "fs:allow-resource-read-recursive",
     "fs:allow-read-dir",
     "fs:allow-mkdir",
@@ -16,12 +17,13 @@
     "fs:allow-write-text-file",
     "fs:allow-read-text-file",
     "fs:allow-read-file",
+    "clipboard-x:default",
     {
       "identifier": "fs:scope",
       "allow": [
-        "$APP_DATA",
         "$APP_DATA/**",
-        "$APPDATA/com.vkango.neotieba",
+        "$LOCAL_APP_DATA/**",
+        "$TEMP/**",
         "$APPDATA/com.vkango.neotieba/**"
       ]
     }

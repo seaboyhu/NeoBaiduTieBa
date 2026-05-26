@@ -82,25 +82,33 @@ async fn handle_browser_login<R: Runtime>(app: AppHandle<R>) -> Result<(), Strin
 }
 
 #[command]
-async fn fetch_data_command(url: &str) -> Result<Value, String> {
-    match fetch_data(url).await {
+async fn fetch_data_command(url: &str, proxy_url: Option<String>) -> Result<Value, String> {
+    match fetch_data(url, proxy_url.as_deref()).await {
         Ok(data) => Ok(serde_json::Value::String(data)),
         Err(e) => Err(format!("Failed to fetch data: {}", e)),
     }
 }
 
 #[command]
-async fn fetch_data_with_headers_command(url: &str, headers_json: &str) -> Result<Value, String> {
+async fn fetch_data_with_headers_command(
+    url: &str,
+    headers_json: &str,
+    proxy_url: Option<String>,
+) -> Result<Value, String> {
     let headers: HeaderMap = match serde_json::from_str(headers_json) {
         Ok(json) => {
             let mut headers = HeaderMap::new();
             if let Value::Object(map) = json {
                 for (key, value) in map {
                     if let Some(value_str) = value.as_str() {
-                        headers.insert(
-                            key.as_str().parse::<reqwest::header::HeaderName>().unwrap(),
-                            value_str.parse().unwrap(),
-                        );
+                        let header_name = key
+                            .as_str()
+                            .parse::<reqwest::header::HeaderName>()
+                            .map_err(|e| format!("Invalid header name '{}': {}", key, e))?;
+                        let header_value = value_str
+                            .parse()
+                            .map_err(|e| format!("Invalid header value for '{}': {}", key, e))?;
+                        headers.insert(header_name, header_value);
                     }
                 }
             }
@@ -109,7 +117,7 @@ async fn fetch_data_with_headers_command(url: &str, headers_json: &str) -> Resul
         Err(e) => return Err(format!("Invalid headers JSON: {}", e)),
     };
 
-    match fetch_data_with_headers(url, headers).await {
+    match fetch_data_with_headers(url, headers, proxy_url.as_deref()).await {
         Ok(data) => Ok(serde_json::to_value(data).unwrap()),
         Err(e) => Err(format!("Failed to fetch data: {}", e)),
     }
@@ -119,10 +127,10 @@ async fn fetch_data_with_headers_command(url: &str, headers_json: &str) -> Resul
 async fn fetch_data_buffer_base64(
     url: &str,
     buffer: Vec<u8>,
-    proxy_url: Option<&str>,
+    proxy_url: Option<String>,
     file_name: &str,
 ) -> Result<String, String> {
-    match fetch_data_buffer(url, buffer, file_name).await {
+    match fetch_data_buffer(url, buffer, file_name, proxy_url).await {
         Ok(data) => Ok(general_purpose::STANDARD.encode(&data)),
         Err(e) => Err(format!("Failed to fetch data: {}", e)),
     }
@@ -132,6 +140,8 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_clipboard_x::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             fetch_data_command,
             fetch_data_with_headers_command,

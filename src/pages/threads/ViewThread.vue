@@ -4,6 +4,7 @@ import { useApiStore } from '@/stores';
 import { read_file } from '@/core/file-io';
 import Reply from '@/components/thread/Reply.vue';
 import ReplyView from '@/components/thread/SubPostView.vue';
+import domToImage from 'dom-to-image';
 
 // 类型定义
 interface Props {
@@ -101,6 +102,37 @@ const currentSubPostInfo: Ref<SubPostInfo> = ref({
   floor: 0,
   is_lz: false
 });
+
+const openImageViewer = inject<(url: string) => void>('openImageViewer');
+const captureRef = ref<HTMLElement | null>(null);
+
+const handleShare = async () => {
+  if (!captureRef.value || !openImageViewer) return;
+  try {
+    const dataUrl = await domToImage.toPng(captureRef.value, {
+      bgcolor: '#1e1e1e',
+      filter: (node: Node) => {
+        // Skip external stylesheets and CORS-restricted images
+        if (node instanceof HTMLLinkElement && node.rel === 'stylesheet') {
+          return !node.href.includes('fonts.googleapis.com');
+        }
+        if (node instanceof HTMLImageElement) {
+          // Allow data URLs and same-origin images
+          return node.src.startsWith('data:') ||
+            node.src.startsWith(window.location.origin) ||
+            node.hasAttribute('crossorigin');
+        }
+        return true;
+      },
+      imagePlaceholder: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMzMzMiLz48L3N2Zz4='
+    });
+    openImageViewer(dataUrl);
+  } catch (error) {
+    console.error('Failed to generate share image:', error);
+    sendToast?.('生成分享图片失败', 2000);
+  }
+};
+
 
 // API实例
 const apiStore = useApiStore();
@@ -204,10 +236,10 @@ const ViewAllReplie = (data: SubPostInfo): void => {
 </script>
 
 <template>
-  <Container @yscroll="onScroll">
+  <Container :scroll-key="`thread-${props.key_}`" @yscroll="onScroll">
     <transition name="fade1">
       <div v-if="!isLoading">
-        <div class="thread-list" v-if="!isDeleted">
+        <div class="thread-list" v-if="!isDeleted" ref="captureRef">
           <h3 class="thread-title">
             <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
               <RippleButton v-if="returnData.data"
@@ -220,6 +252,10 @@ const ViewAllReplie = (data: SubPostInfo): void => {
                 </div>
               </RippleButton>
               {{ threadTitle }}
+              <RippleButton style="padding: 4px; border-radius: 50%; background: transparent; box-shadow: none;"
+                @click="handleShare" title="生成长截图">
+                <span class="material-symbols-outlined" style="font-size: 20px;">share</span>
+              </RippleButton>
             </div>
           </h3>
           <Reply v-for="item in threadList" :key="item.id" :like="item.agree.agreeNum - item.agree.disagreeNum"

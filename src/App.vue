@@ -7,6 +7,7 @@ import ViewBarThreads from './pages/threads/ViewBarThreads.vue';
 import ViewThread from './pages/threads/ViewThread.vue';
 import My from './pages/user/My.vue';
 import Favourite from './pages/user/Favourite.vue';
+import History from './pages/user/History.vue';
 import User from './pages/user/User.vue';
 import Search from './pages/search/Search.vue';
 import Welcome from './pages/Welcome.vue';
@@ -19,7 +20,7 @@ import { read_file } from '@/core/file-io';
 import SearchInBar from './pages/search/SearchInBar.vue';
 import { clipboardService } from '@/services/clipboard-service';
 import { URLParser } from '@/services/url-parser';
-import { useApiStore } from '@/stores';
+import { useApiStore, useHistoryStore } from '@/stores';
 import { useTabStore } from '@/stores/tabs';
 
 // Type definitions
@@ -91,6 +92,7 @@ if (!import.meta.env.PROD) {
 const apiStore = useApiStore();
 const Api = apiStore.getApi();
 const tabStore = useTabStore();
+const historyStore = useHistoryStore();
 
 // Watch for tab changes and update activeTab
 import { watch } from 'vue';
@@ -200,6 +202,13 @@ provide('updateTabMeta', setTabInfo);
 const onBarThreadClick = (id: string | number | undefined): void => {
   if (id === undefined) throw new Error("贴子ID为空！");
 
+  historyStore.addHistory({
+    type: 'thread',
+    target: String(id),
+    title: `帖子 ${id}`,
+    icon: '/assets/apps.svg',
+  });
+
   const key = generateUniqueId('ViewThread' + id);
   tabStore.addTab({
     key: String(key),
@@ -215,6 +224,13 @@ const onBarThreadClick = (id: string | number | undefined): void => {
 const onBarNameClicked = (barName: string | undefined): void => {
   if (barName === undefined) throw new Error("吧名为空！");
 
+  historyStore.addHistory({
+    type: 'bar',
+    target: barName,
+    title: `${barName}吧`,
+    icon: '/assets/apps.svg',
+  });
+
   const key = generateUniqueId('ViewBarThreads' + barName);
   tabStore.addTab({
     key: String(key),
@@ -228,6 +244,13 @@ const onBarNameClicked = (barName: string | undefined): void => {
 
 const userNameClicked = (uid: string | number | undefined): void => {
   if (uid === undefined) throw new Error('用户ID为空！');
+
+  historyStore.addHistory({
+    type: 'user',
+    target: String(uid),
+    title: `用户 ${uid}`,
+    icon: '/assets/user.svg',
+  });
 
   const key = generateUniqueId('User' + uid);
   tabStore.addTab({
@@ -270,6 +293,23 @@ const onFavouriteClicked = (): void => {
     props: { key_: key, onThreadClick: onBarThreadClick },
 
     origin: ({ icon: "/assets/favourite.svg", title: "我的收藏" } as unknown) as import('@/types/common').TabItem
+  });
+};
+
+const onHistoryClicked = (): void => {
+  const key = generateUniqueId('History');
+  tabStore.addTab({
+    key: String(key),
+    icon: "/assets/schedule.svg",
+    title: "浏览历史",
+    component: History,
+    props: {
+      key_: key,
+      onThreadClick: onBarThreadClick,
+      onBarNameClicked: onBarNameClicked,
+      onUserNameClicked: userNameClicked,
+    },
+    origin: ({ icon: "/assets/schedule.svg", title: "浏览历史" } as unknown) as import('@/types/common').TabItem
   });
 };
 
@@ -432,7 +472,7 @@ const addBar = async (id: number): Promise<void> => {
         icon: "/assets/user.svg",
         title: "我的",
         component: My,
-        props: { key_: key, onFavouriteClicked: onFavouriteClicked, onUserNameClicked: userNameClicked, onThreadClicked: onBarThreadClick }
+        props: { key_: key, onFavouriteClicked: onFavouriteClicked, onHistoryClicked: onHistoryClicked, onUserNameClicked: userNameClicked, onThreadClicked: onBarThreadClick }
       });
       break;
     case 4:

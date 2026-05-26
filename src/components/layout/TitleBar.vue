@@ -1,6 +1,6 @@
 <template>
   <div class="title-bar" @mousedown="startDragging" @mouseup="stopDragging" @mouseleave="stopDragging"
-    @mousemove="handleDraggingMaxized">
+    @mousemove="handleDraggingMaxized" @dblclick="handleTitleBarDblClick">
     <div class="title">{{ title }}</div>
     <div class="controls" @mouseup.stop @mouseleave.stop @mousedown.stop>
       <RippleButton class="control-button" style="padding: 0; width: 48px; height: 45px;" id="avatar"
@@ -42,14 +42,19 @@ interface UserDisplay {
 const user = ref<UserDisplay>({ name: '', avatar: '' });
 
 const updateAvatar = async () => {
-  const usr = await getCurrentUser();
-  user.value.name = usr.user_name || usr.username;
-  user.value.avatar = usr.avatar || '';
+  try {
+    const usr = await getCurrentUser();
+    user.value.name = usr?.user_name || usr?.username || '';
+    user.value.avatar = usr?.avatar || '/assets/user.svg';
+  } catch {
+    user.value = { name: '', avatar: '/assets/user.svg' };
+  }
 };
 
 onMounted(async () => {
-  isMaximized.value = !getCurrentWindow().isMaximized();
-  await getCurrentWindow().onResized(handleResize);
+  const window = getCurrentWindow();
+  isMaximized.value = await window.isMaximized();
+  await window.onResized(handleResize);
   await updateAvatar();
 });
 
@@ -105,6 +110,17 @@ const maximizeWindow = async () => {
     await window.maximize();
   }
   isMaximized.value = await window.isMaximized();
+};
+
+const handleTitleBarDblClick = async (event: MouseEvent) => {
+  const target = event.target as HTMLElement | null;
+  if (!target) {
+    return;
+  }
+  if (target.closest('.controls')) {
+    return;
+  }
+  await maximizeWindow();
 };
 
 const closeWindow = async () => {

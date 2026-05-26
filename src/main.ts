@@ -12,14 +12,17 @@ import "@/styles/global.css";
 const appWindow = getCurrentWindow();
 appWindow.onFocusChanged(async ({ payload: focused }) => {
     if (focused) {
-        const text = await readText();
+        try {
+const text = await readText();
         if (text) {
             clipboardService.handle(text);
+        }
+        } catch (error) {
+            // console.error("Failed to read clipboard:", error);
         }
     }
 });
 
-// 创建Pinia实例
 const pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);
 

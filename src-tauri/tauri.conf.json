@@ -5,7 +5,7 @@
   "identifier": "com.vkango.neotieba",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1145",
+    "devUrl": "http://localhost:1143",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },

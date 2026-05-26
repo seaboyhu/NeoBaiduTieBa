@@ -2,6 +2,8 @@
 import { onMounted, ref, computed, inject, type ComputedRef, type Ref } from 'vue';
 import { getUserList, type User } from '@/services/user-manage';
 import type { SettingItem, MenuSettingItem, InfoItem } from '@/types/settings';
+import { useSettingsStore } from '@/stores/settings';
+import { fetchText } from '@/core/request';
 
 // Props 定义
 interface Props {
@@ -20,6 +22,8 @@ const emit = defineEmits<Emits>();
 
 // Inject
 const updateTabMeta = inject<(info: { key: string | number; title: string; icon: string }) => void>('updateTabMeta');
+const settingsStore = useSettingsStore();
+const connectionTestDesc = ref('测试当前网络配置是否可用');
 
 // State 定义
 const user: Ref<User[]> = ref([]);
@@ -58,6 +62,8 @@ const pluginSettings: Ref<MenuSettingItem[]> = ref([{
   id: 6,
 }]);
 
+pluginSettings.value = [];
+
 const currentSettingItems: Ref<InfoItem[]> = ref([
   { title: 'NeoTieBa', icon: 'rocket', desc: 'InDev 2025', id: 7 },
   { title: '更新历史', icon: 'history', desc: '查看拉了什么史' },
@@ -68,17 +74,29 @@ const currentSettingItems: Ref<InfoItem[]> = ref([
 ]);
 
 // 设置项配置
-const displaySettings: Ref<SettingItem[]> = ref([
-  { id: 'show_user_id', icon: 'person', title: '同时显示用户名与ID', type: 'toggle', desc: '在帖子中同时显示用户名和用户ID', value: false },
-  { id: 'only_author', icon: 'person', title: '默认只看楼主', type: 'toggle', desc: '只显示楼主的帖子内容', value: false },
-  { id: 'no_image', icon: 'image_not_supported', title: '无图模式', type: 'toggle', desc: '禁用图片显示以节省流量', value: false },
-  { id: 'theme', icon: 'palette', title: '主题', type: 'select', desc: '选择应用的主题风格', value: 'auto', options: ['跟随系统', '浅色', '深色'] }
+const displaySettings: ComputedRef<SettingItem[]> = computed(() => [
+  { id: 'show_user_id', icon: 'person', title: '同时显示用户名与 ID', type: 'toggle', desc: '在帖子中同时显示用户名和用户 ID', value: settingsStore.showUserId },
+  { id: 'only_author', icon: 'person', title: '默认只看楼主', type: 'toggle', desc: '打开帖子时优先只显示楼主内容', value: settingsStore.onlyAuthor },
+  { id: 'no_image', icon: 'image_not_supported', title: '无图模式', type: 'toggle', desc: '减少图片加载，节省流量和内存', value: settingsStore.noImage },
+  {
+    id: 'theme',
+    icon: 'palette',
+    title: '主题',
+    type: 'select',
+    desc: '选择应用的显示风格',
+    value: settingsStore.theme,
+    options: [
+      { label: '跟随系统', value: 'auto' },
+      { label: '浅色', value: 'light' },
+      { label: '深色', value: 'dark' },
+    ],
+  },
 ]);
 
-const networkSettings: Ref<SettingItem[]> = ref([
-  { id: 'use_proxy', icon: 'settings', title: '使用代理', type: 'toggle', desc: '启用或禁用代理服务器', value: false },
-  { id: 'proxy_url', icon: 'link', title: '代理地址', type: 'input', desc: '代理服务器的地址', value: '', placeholder: 'http://127.0.0.1:7890' },
-  { id: 'connection_test', icon: 'network_check', title: '连接测试', type: 'button', desc: '测试连接是否成功', action: 'test' }
+const networkSettings: ComputedRef<SettingItem[]> = computed(() => [
+  { id: 'use_proxy', icon: 'settings', title: '使用代理', type: 'toggle', desc: '让 API 请求走下面填写的代理地址', value: settingsStore.useProxy },
+  { id: 'proxy_url', icon: 'link', title: '代理地址', type: 'input', desc: '例如 http://127.0.0.1:7890', value: settingsStore.proxyUrl, placeholder: 'http://127.0.0.1:7890' },
+  { id: 'connection_test', icon: 'network_check', title: '连接测试', type: 'button', desc: connectionTestDesc.value, action: 'test' },
 ]);
 
 // Computed
@@ -118,9 +136,30 @@ const handleUserChanged = async (): Promise<void> => {
   emit('userChanged');
 };
 
-// 连接测试
-const testConnection = (): void => {
+const updateSetting = (id: string, value: string | boolean): void => {
+  if (['show_user_id', 'only_author', 'no_image', 'theme'].includes(id)) {
+    settingsStore.updateDisplaySetting(id, value);
+    return;
+  }
 
+  if (['use_proxy', 'proxy_url'].includes(id)) {
+    settingsStore.updateNetworkSetting(id, value);
+  }
+};
+
+// 连接测试
+const testConnection = async (): Promise<void> => {
+  connectionTestDesc.value = '测试中...';
+  const startedAt = performance.now();
+
+  try {
+    await fetchText('https://tieba.baidu.com', {
+      proxyUrl: settingsStore.useProxy ? settingsStore.proxyUrl : undefined,
+    });
+    connectionTestDesc.value = `连接正常，用时 ${Math.round(performance.now() - startedAt)}ms`;
+  } catch (error) {
+    connectionTestDesc.value = error instanceof Error ? error.message : '连接失败';
+  }
 };
 
 // 滚动处理
@@ -132,7 +171,7 @@ const onScroll = (_target: HTMLElement): void => {
 </script>
 
 <template>
-  <Container class="page" @yscroll="onScroll">
+  <Container class="page" :scroll-key="`setting-${props.key_}`" @yscroll="onScroll">
     <div style="width: 80%; justify-self: center; padding-top: 20px;">
 
       <div style="display: flex; gap: 15px; margin-top: 10px;">
@@ -182,7 +221,7 @@ const onScroll = (_target: HTMLElement): void => {
               <span>{{ item.title }}</span>
             </div>
           </RippleButton>
-          <div class="filter-button" style="padding: 0 8px">插件</div>
+          <div v-if="pluginSettings.length" class="filter-button" style="padding: 0 8px">插件</div>
           <RippleButton v-for="item in pluginSettings" :key="item.id" class="filter-button"
             :class="{ selected: item.id === currentPage }" @click="currentPage = item.id"
             style="box-shadow: none; padding: 6px 8px; justify-self: right; font-size: 14px; opacity: 1;">
@@ -202,9 +241,9 @@ const onScroll = (_target: HTMLElement): void => {
             </div>
             <div class="setting-section">
               <Item v-for="setting in displaySettings" :key="setting.id" :title="setting.title" :desc="setting.desc"
-                :icon="setting.icon" :type="setting.type" :value="(setting as any).value"
-                @update:value="(setting as any).value = $event" :options="(setting as any).options"
-                :placeholder="(setting as any).placeholder" />
+                :icon="setting.icon" :type="setting.type" :value="'value' in setting ? setting.value : undefined"
+                @update:value="updateSetting(setting.id, $event)" :options="'options' in setting ? setting.options : []"
+                :placeholder="'placeholder' in setting ? setting.placeholder : undefined" />
             </div>
           </div>
 
@@ -215,10 +254,10 @@ const onScroll = (_target: HTMLElement): void => {
             </div>
             <div class="setting-section">
               <Item v-for="setting in networkSettings" :key="setting.id" :title="setting.title" :desc="setting.desc"
-                :icon="setting.icon" :type="setting.type" :value="(setting as any).value"
-                @update:value="(setting as any).value = $event" :options="(setting as any).options"
-                :placeholder="(setting as any).placeholder"
-                @click="(setting as any).action === 'test' ? testConnection() : null" />
+                :icon="setting.icon" :type="setting.type" :value="'value' in setting ? setting.value : undefined"
+                @update:value="updateSetting(setting.id, $event)" :options="'options' in setting ? setting.options : []"
+                :placeholder="'placeholder' in setting ? setting.placeholder : undefined"
+                @click="'action' in setting && setting.action === 'test' ? testConnection() : null" />
             </div>
           </div>
 

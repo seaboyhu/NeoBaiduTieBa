@@ -21,6 +21,7 @@ declare module 'vue' {
     LoadingWithTip: typeof import('./components/notification/LoadingWithTip.vue')['default']
     Notification: typeof import('./components/notification/Notification.vue')['default']
     NotificationBox: typeof import('./components/notification/NotificationBox.vue')['default']
+    PageState: typeof import('./components/common/PageState.vue')['default']
     PinnedThread: typeof import('./components/thread/PinnedThread.vue')['default']
     QRLoginPanel: typeof import('./components/user/QRLoginPanel.vue')['default']
     Reply: typeof import('./components/thread/Reply.vue')['default']

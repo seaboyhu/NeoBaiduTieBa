@@ -5,8 +5,8 @@
         @mouseenter="pauseTimer(item.id)" @mouseleave="startTimer(item.id, item.duration)"
         @mousedown="startDrag($event, item.id)" @mouseup="handleMouseUp($event, item.id)">
         <RippleButton class="notification-content">
-          <div class="notification-source" v-html="item.source"></div>
-          <div class="notification-title" v-html="item.title"></div>
+          <div class="notification-source" v-html="sanitize(item.source)"></div>
+          <div class="notification-title" v-html="sanitize(item.title)"></div>
           <div class="notification-message">
             <component :is="item.component" v-bind="item.props"></component>
           </div>
@@ -30,6 +30,7 @@
 import type { NotificationItem } from '@/types/common';
 import { ref, onUnmounted, markRaw, nextTick, computed, type Component } from 'vue';
 import RippleButton from '#components/common/RippleButton.vue';
+import { sanitize } from '@/utils/sanitizer';
 
 const notifications = ref<NotificationItem[]>([]);
 const timers = ref<Record<string, ReturnType<typeof setTimeout>>>({});

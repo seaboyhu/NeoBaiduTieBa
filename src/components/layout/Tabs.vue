@@ -2,7 +2,7 @@
   <transition-group name="tab-list" tag="div" class="tabs" @wheel="onTabScroll"
     @before-leave="(el: Element) => setItemPosition(el as HTMLElement)"
     @leave="(el: Element, done: () => void) => handleLeave(el as HTMLElement, done)" @mousedown="startDragging"
-    @mouseup="stopDragging" @mouseleave="stopDragging; showTabInfo = false;">
+    @mouseup="stopDragging" @mouseleave="stopDragging; showTabInfo = false;" @dblclick="handleTabsDblClick">
     <RippleButton class="tab-ripplebutton" v-for="tab in tabStore.visibleTabs" :class="{
       'selected': tab.selected,
       'invert': tab.icon_invert,
@@ -138,6 +138,30 @@ const startDragging = (event: MouseEvent): void => {
 
 const stopDragging = (): void => {
   isMouseDown.value = false;
+};
+
+const toggleWindowMaximize = async (): Promise<void> => {
+  const window = getCurrentWindow();
+  const maximized = await window.isMaximized();
+  if (maximized) {
+    await window.unmaximize();
+    return;
+  }
+  await window.maximize();
+};
+
+const handleTabsDblClick = async (event: MouseEvent): Promise<void> => {
+  const target = event.target as HTMLElement | null;
+  if (!target) {
+    return;
+  }
+
+  // Only blank area should toggle maximize. Interactions on a tab item are excluded.
+  if (target.closest('.tab-ripplebutton')) {
+    return;
+  }
+
+  await toggleWindowMaximize();
 };
 
 function getTabStyle(tab: TabItem): Record<string, string> {

@@ -3,15 +3,31 @@ import {
     fetch_data_with_headers_command,
     fetchData,
     fetchDataPost,
-    fetchData_with_cookie
+    fetchData_with_cookie,
+    type RequestOptions
 } from '@/core/request';
 import { user_info_protobuf } from "@/api/user-info";
 import { user_post_protobuf } from "@/api/user-post";
 import { get_post_proto } from "@/api/get-post";
+import { useSettingsStore } from '@/stores/settings';
+import { normalizeThreadPage, normalizeUserPostPage, normalizeUserProfile } from '@/api/adapters';
+import type { ThreadPage, UserPostPage, UserProfile } from '@/types/client';
 
 export class tieBaAPI {
     constructor() {
         // API configuration could be added here if needed
+    }
+
+    private getRequestOptions(): RequestOptions {
+        try {
+            const settings = useSettingsStore();
+            if (settings.useProxy && settings.proxyUrl.trim()) {
+                return { proxyUrl: settings.proxyUrl.trim() };
+            }
+        } catch {
+            // Pinia may not be active in tests or one-off utility calls.
+        }
+        return {};
     }
 
     async get_post(
@@ -24,7 +40,17 @@ export class tieBaAPI {
         bduss = '',
         commentRn = 10
     ): Promise<any> {
-        return await get_post_proto(tid, pn, rn, sort, onlyThreadAuthor, withComments, bduss, commentRn);
+        return await get_post_proto(
+            tid,
+            pn,
+            rn,
+            sort,
+            onlyThreadAuthor,
+            withComments,
+            bduss,
+            commentRn,
+            this.getRequestOptions()
+        );
     }
 
     calcSign(originalData: string): string {
@@ -35,11 +61,23 @@ export class tieBaAPI {
     }
 
     async user_info(userId: string | number, page = 1): Promise<any> {
-        return await user_info_protobuf(userId, page);
+        return await user_info_protobuf(userId, page, this.getRequestOptions());
     }
 
     async user_post(userId: string | number, page = 1): Promise<any> {
-        return await user_post_protobuf(userId, page);
+        return await user_post_protobuf(userId, page, this.getRequestOptions());
+    }
+
+    async getThreadPage(tid: string | number, page = 1): Promise<ThreadPage> {
+        return normalizeThreadPage(await this.get_post(tid, page), tid);
+    }
+
+    async getUserProfilePage(userId: string | number, page = 1): Promise<UserProfile> {
+        return normalizeUserProfile(await this.user_info(userId, page), userId);
+    }
+
+    async getUserPostPage(userId: string | number, page = 1): Promise<UserPostPage> {
+        return normalizeUserPostPage(await this.user_post(userId, page), userId);
     }
 
     async getUserInfo(bduss: string, stoken: string): Promise<any> {
@@ -47,7 +85,8 @@ export class tieBaAPI {
             const cookie = `BDUSS=${bduss}; STOKEN=${stoken};`;
             const responseData = await fetchData_with_cookie(
                 'https://tieba.baidu.com/f/user/json_userinfo',
-                cookie
+                cookie,
+                this.getRequestOptions()
             );
             return JSON.parse(responseData);
         } catch (error) {
@@ -58,13 +97,13 @@ export class tieBaAPI {
 
     async searchThreadInBar(barName: string, keyword: string, pn: number): Promise<any> {
         const url = `http://tieba.baidu.com/mo/q/search/thread?st=5&tt=1&ct=2&cv=12.91.1.0&fname=${encodeURIComponent(barName)}&word=${encodeURIComponent(keyword)}&pn=${pn}&rn=20`;
-        const responseData = await fetchData(url);
+        const responseData = await fetchData(url, this.getRequestOptions());
         return JSON.parse(responseData);
     }
 
     async searchPostInBar(barName: string, keyword: string, pn: number): Promise<any> {
         const url = `http://tieba.baidu.com/mo/q/search/thread?st=5&tt=3&ct=2&cv=12.91.1.0&fname=${encodeURIComponent(barName)}&word=${encodeURIComponent(keyword)}&pn=${pn}&rn=20`;
-        const responseData = await fetchData(url);
+        const responseData = await fetchData(url, this.getRequestOptions());
         return JSON.parse(responseData);
     }
 
@@ -72,7 +111,8 @@ export class tieBaAPI {
         const data = `word=${encodeURIComponent(keyword)}`;
         const responseData = await fetchDataPost(
             'https://tiebac.baidu.com/mo/q/search/forum',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
@@ -81,7 +121,8 @@ export class tieBaAPI {
         const data = `word=${encodeURIComponent(keyword)}`;
         const responseData = await fetchDataPost(
             'https://tiebac.baidu.com/mo/q/search/user',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
@@ -100,14 +141,15 @@ export class tieBaAPI {
         const data = `word=${encodeURIComponent(keyword)}&pn=${pn}&st=${st}&tt=${tt}&rn=${rn}&fname=${encodeURIComponent(fname)}&ct=${ct}&is_use_zonghe=${is_use_zonghe}&cv=${cv}`;
         const responseData = await fetchDataPost(
             'https://tiebac.baidu.com/mo/q/search/thread',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
 
     async browseBar(barName: string, page = 1): Promise<any> {
         const data = `_client_type=2&_client_version=8.6.8.0&kw=${encodeURIComponent(barName)}&pn=${page}&q_type=2&rn=50&with_group=1`;
-        const responseData = await fetchData('http://c.tieba.baidu.com/c/f/frs/page?' + this.calcSign(data));
+        const responseData = await fetchData('http://c.tieba.baidu.com/c/f/frs/page?' + this.calcSign(data), this.getRequestOptions());
         return JSON.parse(responseData);
     }
 
@@ -118,7 +160,8 @@ export class tieBaAPI {
                 'Cookie': `BDUSS=${bduss}; STOKEN=${stoken}`,
                 'Host': 'tieba.baidu.com',
                 'Accept-Encoding': 'gzip, deflate, br, zstd'
-            }
+            },
+            this.getRequestOptions()
         );
         return JSON.parse(responseData.text);
     }
@@ -127,7 +170,8 @@ export class tieBaAPI {
         const data = `BDUSS=${bduss}&_client_type=2&_client_version=12.68.1.0&forum_id=${forumId}&is_newfrs=1&stoken=${stoken}`;
         const responseData = await fetchDataPost(
             'http://c.tieba.baidu.com/c/f/forum/getforumdetail',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
@@ -136,7 +180,8 @@ export class tieBaAPI {
         const data = `BDUSS=${bduss}&_client_type=2&_client_version=12.68.1.0&forum_id=${forumId}&stoken=${stoken}`;
         const responseData = await fetchDataPost(
             'http://c.tieba.baidu.com/c/f/forum/forumRuleDetail',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
@@ -145,7 +190,8 @@ export class tieBaAPI {
         const data = `BDUSS=${bduss}&_client_type=2&_client_version=12.68.1.0&forum_ids=${forumId}&from=frs&stoken=${stoken}`;
         const responseData = await fetchDataPost(
             'http://c.tieba.baidu.com/c/f/forum/getUserSign',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
@@ -154,7 +200,8 @@ export class tieBaAPI {
         const params = `_client_type=2&_client_version=12.68.1.0&BDUSS=${bduss}&stoken=${stoken}&forum_id=${forumId}&subapp_type=hybrid`;
         const responseData = await fetch_data_with_headers_command(
             'https://c.tieba.baidu.com/c/f/forum/getUserForumLevelInfo?' + this.calcSign(params),
-            { 'Subapp-Type': 'hybrid' }
+            { 'Subapp-Type': 'hybrid' },
+            this.getRequestOptions()
         );
         return JSON.parse(responseData.text);
     }
@@ -162,31 +209,32 @@ export class tieBaAPI {
     async getBawuInfo(forumId: string): Promise<any> {
         const data = `_client_version=12.68.1.0&forum_id=${forumId}`;
         const responseData = await fetchData(
-            'http://c.tieba.baidu.com/c/f/forum/getBawuInfo?' + this.calcSign(data)
+            'http://c.tieba.baidu.com/c/f/forum/getBawuInfo?' + this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
 
     async FollowBar(cookie: string, page = 1): Promise<any> {
         const url = `https://tieba.baidu.com/mg/o/getForumHome?st=0&pn=${page}&rn=20&eqid=&refer=`;
-        const response = await fetchData_with_cookie(url, cookie);
+        const response = await fetchData_with_cookie(url, cookie, this.getRequestOptions());
         return JSON.parse(response);
     }
 
     async viewThread(id: string | number, page = 1): Promise<any> {
         const data = `_client_version=7.2.2&kz=${id}&net_type=1&pn=${page}`;
-        const responseData = await fetchData('http://c.tieba.baidu.com/c/f/pb/page?' + this.calcSign(data));
+        const responseData = await fetchData('http://c.tieba.baidu.com/c/f/pb/page?' + this.calcSign(data), this.getRequestOptions());
         return JSON.parse(responseData);
     }
 
     async userProfile(uid: string | number): Promise<any> {
         const data = `uid=${uid}`;
-        const responseData = await fetchData('http://c.tieba.baidu.com/c/u/user/profile?' + this.calcSign(data));
+        const responseData = await fetchData('http://c.tieba.baidu.com/c/u/user/profile?' + this.calcSign(data), this.getRequestOptions());
         return JSON.parse(responseData);
     }
 
     async userCard(id: string | number): Promise<any> {
-        const responseData = await fetchData('https://tieba.baidu.com/home/get/panel?id=' + id);
+        const responseData = await fetchData('https://tieba.baidu.com/home/get/panel?id=' + id, this.getRequestOptions());
         return JSON.parse(responseData);
     }
 
@@ -194,7 +242,8 @@ export class tieBaAPI {
         const data = `${BDUSS}&offset=${offset}&rn=20`;
         const responseData = await fetchDataPost(
             'https://c.tieba.baidu.com/c/f/post/threadstore',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
@@ -203,20 +252,21 @@ export class tieBaAPI {
         const data = `BDUSS=${bduss}&stoken=${stoken}`;
         const responseData = await fetchDataPost(
             'https://c.tieba.baidu.com/c/f/forum/getforumlist',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
 
     async myProfile(cookie: string): Promise<any> {
         const url = `https://tieba.baidu.com/mg/o/profile?format=json&eqid=&refer=`;
-        const response = await fetchData_with_cookie(url, cookie);
+        const response = await fetchData_with_cookie(url, cookie, this.getRequestOptions());
         return JSON.parse(response);
     }
 
     async get_self_id(cookie: string): Promise<string> {
         const url = `https://tieba.baidu.com/mo/q/sync`;
-        const response = await fetchData_with_cookie(url, cookie);
+        const response = await fetchData_with_cookie(url, cookie, this.getRequestOptions());
         return JSON.parse(response).data.user_id;
     }
 
@@ -243,7 +293,8 @@ export class tieBaAPI {
 
         const responseData = await fetchDataPost(
             'https://c.tieba.baidu.com/c/f/excellent/personalized',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
@@ -252,7 +303,8 @@ export class tieBaAPI {
         const data = `BDUSS=${cookie}&pn=${pn}`;
         const responseData = await fetchDataPost(
             'https://c.tieba.baidu.com/c/u/feed/replyme',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
@@ -261,14 +313,15 @@ export class tieBaAPI {
         const data = `BDUSS=${cookie}&pn=${pn}`;
         const responseData = await fetchDataPost(
             'https://c.tieba.baidu.com/c/u/feed/atme',
-            this.calcSign(data)
+            this.calcSign(data),
+            this.getRequestOptions()
         );
         return JSON.parse(responseData);
     }
 
     async viewSubPost(tid: string | number, pid: string | number, page = 1): Promise<any> {
         const data = `kz=${tid}&pid=${pid}&pn=${page}`;
-        const responseData = await fetchData('http://c.tieba.baidu.com/c/f/pb/floor?' + this.calcSign(data));
+        const responseData = await fetchData('http://c.tieba.baidu.com/c/f/pb/floor?' + this.calcSign(data), this.getRequestOptions());
         return JSON.parse(responseData);
     }
 }

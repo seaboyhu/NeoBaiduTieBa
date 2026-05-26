@@ -34,14 +34,14 @@ export default defineConfig(async () => ({
     },
   },
   server: {
-    port: 1145,
+    port: 1143,
     strictPort: true,
     host: host || false,
     hmr: host
       ? {
         protocol: "ws",
         host,
-        port: 1146,
+        port: 1143,
       }
       : undefined,
     watch: {

@@ -1,0 +1,182 @@
+<script setup lang="ts">
+import { computed, inject, onMounted } from 'vue';
+import { useHistoryStore, type HistoryItem } from '@/stores/history';
+
+const props = defineProps<{
+  key_: string | number;
+}>();
+
+const emit = defineEmits<{
+  (event: 'threadClick', id: string): void;
+  (event: 'barNameClicked', barName: string): void;
+  (event: 'userNameClicked', uid: string): void;
+}>();
+
+const updateTabMeta = inject<(info: { key: string | number; title: string; icon: string }) => void>('updateTabMeta');
+const historyStore = useHistoryStore();
+const historyItems = computed(() => historyStore.items);
+
+onMounted(() => {
+  updateTabMeta?.({ key: props.key_, title: '浏览历史', icon: '/assets/schedule.svg' });
+});
+
+function openItem(item: HistoryItem): void {
+  if (item.type === 'thread') {
+    emit('threadClick', item.target);
+    return;
+  }
+
+  if (item.type === 'bar') {
+    emit('barNameClicked', item.target);
+    return;
+  }
+
+  emit('userNameClicked', item.target);
+}
+
+function formatTime(timestamp: number): string {
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(timestamp);
+}
+</script>
+
+<template>
+  <Container :scroll-key="`history-${props.key_}`">
+    <div class="history-page">
+      <div class="history-header">
+        <div>
+          <h2>浏览历史</h2>
+          <p>只记录本地打开过的帖子、贴吧和用户页。</p>
+        </div>
+        <RippleButton class="clear-button" @click="historyStore.clearHistory()">
+          <span class="material-symbols-outlined">delete</span>
+          清空
+        </RippleButton>
+      </div>
+
+      <div v-if="historyItems.length === 0" class="empty-state">
+        <span class="material-symbols-outlined">history</span>
+        <div>暂无浏览历史</div>
+      </div>
+
+      <div v-else class="history-list">
+        <RippleButton v-for="item in historyItems" :key="item.id" class="history-item" @click="openItem(item)">
+          <img class="item-icon-img" :src="item.icon" referrerpolicy="no-referrer">
+          <div class="item-main">
+            <div class="item-title">{{ item.title }}</div>
+            <div class="item-meta">{{ formatTime(item.timestamp) }}</div>
+          </div>
+          <span class="material-symbols-outlined item-arrow">chevron_right</span>
+        </RippleButton>
+      </div>
+    </div>
+  </Container>
+</template>
+
+<style scoped>
+.history-page {
+  width: min(860px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.history-header h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.history-header p {
+  margin: 6px 0 0;
+  color: rgba(var(--text-color), 0.55);
+  font-size: 13px;
+}
+
+.clear-button {
+  margin-left: auto;
+  padding: 8px 12px;
+  box-shadow: none;
+  background: rgba(var(--text-color), 0.06);
+}
+
+.clear-button :deep(.ripple-button-content) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty-state {
+  height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: rgba(var(--text-color), 0.48);
+}
+
+.empty-state .material-symbols-outlined {
+  font-size: 44px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(var(--text-color), 0.045);
+  box-shadow: none;
+}
+
+.history-item :deep(.ripple-button-content) {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.item-icon-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.item-title {
+  overflow: hidden;
+  color: rgb(var(--text-color));
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-meta {
+  margin-top: 4px;
+  color: rgba(var(--text-color), 0.48);
+  font-size: 12px;
+}
+
+.item-arrow {
+  color: rgba(var(--text-color), 0.4);
+}
+</style>

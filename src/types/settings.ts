@@ -14,7 +14,7 @@ export interface ToggleSettingItem extends BaseSettingItem {
 export interface SelectSettingItem extends BaseSettingItem {
     type: 'select';
     value: string;
-    options: string[];
+    options: Array<string | { label: string; value: string }>;
 }
 
 export interface InputSettingItem extends BaseSettingItem {

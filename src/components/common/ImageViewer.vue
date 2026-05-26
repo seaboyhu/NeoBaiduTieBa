@@ -1,317 +1,698 @@
 <template>
-    <Transition name="fade-slide">
-        <div class="image-viewer" v-show="visible" @wheel.prevent="handleWheel">
-            <div class="image-container" ref="containerRef" :style="containerStyle" @mousedown.prevent="handleMouseDown"
-                @mousemove.prevent="handleMouseMove" @mouseup.prevent="handleMouseUp"
-                @mouseleave.prevent="handleMouseUp" @touchstart.prevent="handleTouchStart"
-                @touchmove.prevent="handleTouchMove" @touchend.prevent="handleTouchEnd" @dragstart.prevent>
-                <img :src="imageSrc" alt="Image" ref="imageRef" @load="handleImageLoad" referrerpolicy="no-referrer"
-                    draggable="false" />
+    <Transition name="fade">
+        <div v-if="props.visible" class="image-viewer-overlay" @click.self="handleClose"
+            @contextmenu.prevent="handleContextMenu" tabindex="0" @keydown="handleKeydown" ref="overlayRef">
+            <!-- Main Image Container -->
+            <div class="image-wrapper" :style="wrapperStyle" @mousedown="handleMouseDown" @wheel.prevent="handleWheel"
+                @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
+                <img ref="imageRef" :src="props.imageSrc" class="viewer-image" alt="Preview" draggable="false"
+                    @load="onImageLoad" />
             </div>
-            <div class="controls">
-                <button @click="saveImage">保存图像</button>
-                <button @click="$emit('close')">关闭</button>
+
+            <!-- Controls Bar -->
+            <div class="controls-bar" @click.stop>
+                <div class="zoom-info" :title="`DPI: ${dpiScale.toFixed(2)}x`" @click="handleZoomMenu">
+                    {{ Math.round(scale * 100) }}%
+                </div>
+
+                <div class="divider"></div>
+
+                <button class="control-btn" @click="zoomOut" title="缩小">
+                    <span class="material-symbols-outlined">remove</span>
+                </button>
+
+                <input type="range" v-model.number="zoomSliderValue" min="10" max="1000" class="zoom-slider"
+                    @input="handleSliderChange" />
+
+                <button class="control-btn" @click="zoomIn" title="放大">
+                    <span class="material-symbols-outlined">add</span>
+                </button>
+
+                <div class="divider"></div>
+
+                <button class="control-btn" @click="rotateLeft" title="向左旋转">
+                    <span class="material-symbols-outlined">rotate_left</span>
+                </button>
+                <button class="control-btn" @click="rotateRight" title="向右旋转">
+                    <span class="material-symbols-outlined">rotate_right</span>
+                </button>
+
+                <div class="divider"></div>
+
+                <button class="control-btn" @click="resetView" title="重置">
+                    <span class="material-symbols-outlined">restart_alt</span>
+                </button>
+
+                <div class="divider"></div>
+
+                <button class="control-btn" @click="saveImage" title="另存为">
+                    <span class="material-symbols-outlined">save</span>
+                </button>
+                <button class="control-btn" @click="copyImage" title="复制">
+                    <span class="material-symbols-outlined">content_copy</span>
+                </button>
+
+                <div class="divider"></div>
+
+                <button class="control-btn close-btn" @click="handleClose" title="关闭">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Context Menu -->
+            <div v-if="contextMenu.visible" class="context-menu"
+                :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }" @click.stop>
+                <div class="menu-item" @click="copyImage">
+                    <span class="material-symbols-outlined">content_copy</span>
+                    <span>复制图片</span>
+                </div>
+                <div class="menu-item" @click="saveImage">
+                    <span class="material-symbols-outlined">save</span>
+                    <span>另存为...</span>
+                </div>
+                <div class="menu-divider"></div>
+                <div class="menu-item" @click="resetView">
+                    <span class="material-symbols-outlined">restart_alt</span>
+                    <span>重置视图</span>
+                </div>
+            </div>
+
+            <!-- Zoom Preset Menu -->
+            <div v-if="zoomMenu.visible" class="zoom-preset-menu" :style="{ bottom: '85px', left: zoomMenu.x + 'px' }"
+                @click.stop>
+                <div v-for="preset in [0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 4, 8]" :key="preset" class="preset-item"
+                    @click="setZoom(preset)" :class="{ active: Math.abs(scale - preset) < 0.01 }">
+                    {{ Math.round(preset * 100) }}%
+                </div>
             </div>
         </div>
-
     </Transition>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-
-interface ZoomCenter {
-    x: number;
-    y: number;
-}
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeFile } from '@tauri-apps/plugin-fs';
+import { writeImage } from 'tauri-plugin-clipboard-x-api';
+import { tempDir, join } from '@tauri-apps/api/path';
 
 const props = defineProps<{
     imageSrc: string;
     visible?: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
     (e: 'close'): void;
 }>();
 
-// 状态变量
+// State
 const scale = ref(1);
+const rotation = ref(0);
 const translateX = ref(0);
 const translateY = ref(0);
 const isDragging = ref(false);
-const startX = ref(0);
-const startY = ref(0);
-const startTranslateX = ref(0);
-const startTranslateY = ref(0);
-const containerRef = ref<HTMLDivElement | null>(null);
+const dpiScale = ref(1);
+
+// Interaction State
+const lastMouseX = ref(0);
+const lastMouseY = ref(0);
+const overlayRef = ref<HTMLElement | null>(null);
 const imageRef = ref<HTMLImageElement | null>(null);
-const initialDistance = ref(0);
-const lastCenter = ref<ZoomCenter>({ x: 0, y: 0 });
-const lastScale = ref(1);
-// 图片边界
-const bounds = ref({
-    minX: 0,
-    maxX: 0,
-    minY: 0,
-    maxY: 0
+
+// Context Menu State
+const contextMenu = ref({
+    visible: false,
+    x: 0,
+    y: 0
 });
 
-// 计算样式
-const containerStyle = computed(() => ({
-    transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})`,
-    transition: isDragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+// Zoom Menu State
+const zoomMenu = ref({
+    visible: false,
+    x: 0
+});
+
+// Computed
+const wrapperStyle = computed(() => ({
+    transform: `translate(${translateX.value}px, ${translateY.value}px) rotate(${rotation.value}deg) scale(${scale.value})`,
+    transition: isDragging.value ? 'none' : 'transform 0.15s ease-out'
 }));
 
-// 处理图片加载，计算初始边界
-const handleImageLoad = (): void => {
-    if (!imageRef.value || !containerRef.value) return;
-
-    // 重置缩放和位置
-    scale.value = 1;
-    translateX.value = 0;
-    translateY.value = 0;
-
-    // 计算边界
-    updateBounds();
-};
-
-// 更新边界值
-const updateBounds = (): void => {
-    if (!imageRef.value || !containerRef.value) return;
-
-    const imgRect = imageRef.value.getBoundingClientRect();
-
-    const maxOffset = (scale.value - 1) * Math.max(imgRect.width, imgRect.height) / 2;
-
-    bounds.value = {
-        minX: -maxOffset,
-        maxX: maxOffset,
-        minY: -maxOffset,
-        maxY: maxOffset
-    };
-};
-
-// 确保位置在边界内
-const clampPosition = () => {
-    translateX.value = Math.min(Math.max(translateX.value, bounds.value.minX), bounds.value.maxX);
-    translateY.value = Math.min(Math.max(translateY.value, bounds.value.minY), bounds.value.maxY);
-};
-
-// 处理滚轮缩放
-const handleWheel = (event: WheelEvent): void => {
-    const delta = event.deltaY;
-    const factor = delta < 0 ? 1.1 : 0.9;
-    const newScale = Math.min(Math.max(scale.value * factor, 0.5), 5);
-
-    if (newScale !== scale.value) {
-        zoom(newScale, {
-            x: event.clientX,
-            y: event.clientY
-        });
+const zoomSliderValue = computed({
+    get: () => Math.round(scale.value * 100),
+    set: (val) => {
+        scale.value = val / 100;
     }
-};
+});
 
-// 鼠标事件处理
-const handleMouseDown = (event: MouseEvent | Touch): void => {
-    isDragging.value = true;
-    startX.value = event.clientX;
-    startY.value = event.clientY;
-    startTranslateX.value = translateX.value;
-    startTranslateY.value = translateY.value;
-    if (event instanceof MouseEvent) {
-        event.preventDefault(); // 阻止默认行为
-    }
-};
+function clampTranslation() {
+    if (!imageRef.value) return;
 
-const handleMouseMove = (event: MouseEvent | Touch): void => {
-    if (!isDragging.value) return;
+    const img = imageRef.value;
+    const containerWidth = window.innerWidth;
+    const containerHeight = window.innerHeight;
 
-    const deltaX = event.clientX - startX.value;
-    const deltaY = event.clientY - startY.value;
+    const isRotated = (rotation.value / 90) % 2 !== 0;
 
-    translateX.value = startTranslateX.value + deltaX;
-    translateY.value = startTranslateY.value + deltaY;
+    // Calculate the actual visual size of the image on screen
+    const visualW = img.clientWidth * scale.value;
+    const visualH = img.clientHeight * scale.value;
 
-    clampPosition();
-};
+    const currentW = isRotated ? visualH : visualW;
+    const currentH = isRotated ? visualW : visualH;
 
-const handleMouseUp = (): void => {
-    isDragging.value = false;
-};
+    const maxDx = Math.max(0, (currentW - containerWidth) / 2);
+    const maxDy = Math.max(0, (currentH - containerHeight) / 2);
 
-// 触摸事件处理
-const handleTouchStart = (event: TouchEvent): void => {
-    event.preventDefault(); // 阻止默认行为
+    translateX.value = Math.max(-maxDx, Math.min(maxDx, translateX.value));
+    translateY.value = Math.max(-maxDy, Math.min(maxDy, translateY.value));
+}
 
-    if (event.touches.length === 2) {
-        const touch1 = event.touches[0];
-        const touch2 = event.touches[1];
-
-        // 计算初始距离和中心点
-        initialDistance.value = Math.hypot(
-            touch2.clientX - touch1.clientX,
-            touch2.clientY - touch1.clientY
-        );
-
-        lastCenter.value = {
-            x: (touch1.clientX + touch2.clientX) / 2,
-            y: (touch1.clientY + touch2.clientY) / 2
-        };
-
-        lastScale.value = scale.value;
-        isDragging.value = false;
-    } else {
-        handleMouseDown(event.touches[0]);
-    }
-};
-
-const handleTouchMove = (event: TouchEvent): void => {
-    event.preventDefault(); // 阻止默认行为
-
-    if (event.touches.length === 2) {
-        const touch1 = event.touches[0];
-        const touch2 = event.touches[1];
-
-        // 计算当前两指距离和中心点
-        const currentDistance = Math.hypot(
-            touch2.clientX - touch1.clientX,
-            touch2.clientY - touch1.clientY
-        );
-
-        const currentCenter = {
-            x: (touch1.clientX + touch2.clientX) / 2,
-            y: (touch1.clientY + touch2.clientY) / 2
-        };
-
-        const newScale = Math.min(
-            Math.max(lastScale.value * (currentDistance / initialDistance.value), 0.5),
-            5
-        );
-
-        zoom(newScale, currentCenter);
-    } else if (isDragging.value) {
-        handleMouseMove(event.touches[0]);
-    }
-};
-
-const handleTouchEnd = (): void => {
-    initialDistance.value = 0;
-    handleMouseUp();
-};
-
-const zoom = (newScale: number, center: ZoomCenter): void => {
-    const oldScale = scale.value;
-    const containerRect = containerRef.value?.getBoundingClientRect();
-    if (!containerRect) return;
-
-    const containerCenter: ZoomCenter = {
-        x: containerRect.left + containerRect.width / 2,
-        y: containerRect.top + containerRect.height / 2
-    };
-
-    // 计算鼠标/触摸点相对于容器中心的偏移
-    const deltaX = center.x - containerCenter.x;
-    const deltaY = center.y - containerCenter.y;
-
-    // 计算新的偏移量
-    const scaleDiff = newScale - oldScale;
-    translateX.value += (deltaX * scaleDiff) / oldScale;
-    translateY.value += (deltaY * scaleDiff) / oldScale;
-
-    scale.value = newScale;
-    updateBounds();
-    clampPosition();
-};
-
-// 保存图像
-const saveImage = (): void => {
-    const link = document.createElement('a');
-    link.href = props.imageSrc;
-    link.download = 'image.jpg';
-    link.click();
-};
-
-// 生命周期钩子
+// Lifecycle
 onMounted(() => {
-    window.addEventListener('resize', updateBounds);
+    dpiScale.value = window.devicePixelRatio || 1;
+    window.addEventListener('resize', handleResize);
 });
 
 onUnmounted(() => {
-    window.addEventListener('resize', updateBounds);
+    window.removeEventListener('resize', handleResize);
 });
+
+watch(() => props.visible, (newVal) => {
+    if (newVal) {
+        resetView();
+        contextMenu.value.visible = false;
+        zoomMenu.value.visible = false;
+        nextTick(() => {
+            overlayRef.value?.focus();
+        });
+    }
+});
+
+watch([scale, rotation], () => {
+    nextTick(() => clampTranslation());
+});
+
+// Event Handlers
+function handleClose() {
+    emit('close');
+}
+
+function onImageLoad() {
+    resetView();
+}
+
+function handleResize() {
+    dpiScale.value = window.devicePixelRatio || 1;
+    clampTranslation();
+}
+
+function handleKeydown(e: KeyboardEvent) {
+    if (!props.visible) return;
+
+    if (e.key === 'Escape') handleClose();
+    if (e.key === 'ArrowLeft') translateX.value -= 50;
+    if (e.key === 'ArrowRight') translateX.value += 50;
+    if (e.key === 'ArrowUp') translateY.value -= 50;
+    if (e.key === 'ArrowDown') translateY.value += 50;
+    if (e.key === '+' || e.key === '=') zoomIn();
+    if (e.key === '-') zoomOut();
+    clampTranslation();
+}
+
+// Mouse Interaction
+function handleMouseDown(e: MouseEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    isDragging.value = true;
+    lastMouseX.value = e.clientX;
+    lastMouseY.value = e.clientY;
+    contextMenu.value.visible = false;
+    zoomMenu.value.visible = false;
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+}
+
+function handleMouseMove(e: MouseEvent) {
+    if (!isDragging.value) return;
+    e.preventDefault();
+
+    const deltaX = e.clientX - lastMouseX.value;
+    const deltaY = e.clientY - lastMouseY.value;
+
+    const rad = -rotation.value * (Math.PI / 180);
+    const dx = deltaX * Math.cos(rad) - deltaY * Math.sin(rad);
+    const dy = deltaX * Math.sin(rad) + deltaY * Math.cos(rad);
+
+    translateX.value += dx;
+    translateY.value += dy;
+
+    clampTranslation();
+
+    lastMouseX.value = e.clientX;
+    lastMouseY.value = e.clientY;
+}
+
+function handleMouseUp() {
+    isDragging.value = false;
+    window.removeEventListener('mousemove', handleMouseMove);
+    window.removeEventListener('mouseup', handleMouseUp);
+}
+
+function handleWheel(e: WheelEvent) {
+    contextMenu.value.visible = false;
+    zoomMenu.value.visible = false;
+
+    let zoomFactor = 0;
+    if (e.ctrlKey) {
+        // Pinch gesture or Ctrl+Wheel
+        zoomFactor = -e.deltaY * 0.01;
+    } else {
+        zoomFactor = -e.deltaY * 0.001;
+    }
+
+    const newScale = Math.max(0.1, Math.min(10, scale.value + scale.value * zoomFactor));
+    scale.value = newScale;
+}
+
+// Touch Interaction
+interface TouchState {
+    distance: number;
+    lastCenter: { x: number, y: number };
+}
+let lastTouchState: TouchState | null = null;
+
+function handleTouchStart(e: TouchEvent) {
+    if (e.touches.length === 1) {
+        isDragging.value = true;
+        lastMouseX.value = e.touches[0].clientX;
+        lastMouseY.value = e.touches[0].clientY;
+    } else if (e.touches.length === 2) {
+        isDragging.value = false;
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const distance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        const centerX = (t1.clientX + t2.clientX) / 2;
+        const centerY = (t1.clientY + t2.clientY) / 2;
+        lastTouchState = { distance, lastCenter: { x: centerX, y: centerY } };
+    }
+}
+
+function handleTouchMove(e: TouchEvent) {
+    if (e.touches.length === 1 && isDragging.value) {
+        const t = e.touches[0];
+        const deltaX = t.clientX - lastMouseX.value;
+        const deltaY = t.clientY - lastMouseY.value;
+
+        const rad = -rotation.value * (Math.PI / 180);
+        const dx = deltaX * Math.cos(rad) - deltaY * Math.sin(rad);
+        const dy = deltaX * Math.sin(rad) + deltaY * Math.cos(rad);
+
+        translateX.value += dx;
+        translateY.value += dy;
+        clampTranslation();
+
+        lastMouseX.value = t.clientX;
+        lastMouseY.value = t.clientY;
+    } else if (e.touches.length === 2 && lastTouchState) {
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const distance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        const centerX = (t1.clientX + t2.clientX) / 2;
+        const centerY = (t1.clientY + t2.clientY) / 2;
+
+        const ratio = distance / lastTouchState.distance;
+        scale.value = Math.max(0.1, Math.min(10, scale.value * ratio));
+
+        const deltaX = centerX - lastTouchState.lastCenter.x;
+        const deltaY = centerY - lastTouchState.lastCenter.y;
+
+        const rad = -rotation.value * (Math.PI / 180);
+        const dx = deltaX * Math.cos(rad) - deltaY * Math.sin(rad);
+        const dy = deltaX * Math.sin(rad) + deltaY * Math.cos(rad);
+
+        translateX.value += dx;
+        translateY.value += dy;
+        clampTranslation();
+
+        lastTouchState = { distance, lastCenter: { x: centerX, y: centerY } };
+    }
+}
+
+function handleTouchEnd() {
+    isDragging.value = false;
+    lastTouchState = null;
+}
+
+// Controls
+function zoomIn() {
+    scale.value = Math.min(10, scale.value * 1.2);
+}
+function zoomOut() {
+    scale.value = Math.max(0.1, scale.value * 0.8);
+}
+function handleSliderChange() {
+    // handled by v-model
+}
+function rotateLeft() {
+    rotation.value -= 90;
+}
+function rotateRight() {
+    rotation.value += 90;
+}
+function resetView() {
+    scale.value = 1;
+    rotation.value = 0;
+    translateX.value = 0;
+    translateY.value = 0;
+    nextTick(() => clampTranslation());
+}
+
+// Context Menu
+function handleContextMenu(e: MouseEvent) {
+    const menuWidth = 220;
+    const menuHeight = 180;
+    let x = e.clientX;
+    let y = e.clientY;
+
+    if (x + menuWidth > window.innerWidth) x -= menuWidth;
+    if (y + menuHeight > window.innerHeight) y -= menuHeight;
+
+    zoomMenu.value.visible = false;
+    contextMenu.value = {
+        visible: true,
+        x,
+        y
+    };
+}
+
+// Zoom Preset Menu
+function handleZoomMenu(e: MouseEvent) {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    zoomMenu.value = {
+        visible: !zoomMenu.value.visible,
+        x: rect.left + rect.width / 2 - 50 // Center roughly
+    };
+    contextMenu.value.visible = false;
+}
+
+function setZoom(preset: number) {
+    scale.value = preset;
+    zoomMenu.value.visible = false;
+}
+
+// API Functions
+async function fetchImageBlob(): Promise<Blob> {
+    const response = await fetch(props.imageSrc);
+    if (!response.ok) throw new Error('Failed to fetch image');
+    return await response.blob();
+}
+
+async function saveImage() {
+    try {
+        const blob = await fetchImageBlob();
+        const buffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(buffer);
+
+        let ext = 'jpg';
+        if (blob.type === 'image/png') ext = 'png';
+        else if (blob.type === 'image/webp') ext = 'webp';
+        else if (blob.type === 'image/gif') ext = 'gif';
+
+        const path = await save({
+            filters: [{
+                name: 'Image',
+                extensions: ['jpg', 'png', 'webp', 'gif']
+            }],
+            defaultPath: `image_${Date.now()}.${ext}`
+        });
+
+        if (path) {
+            await writeFile(path, uint8Array);
+        }
+    } catch (err) {
+        console.error('Save failed', err);
+    }
+    contextMenu.value.visible = false;
+}
+
+async function copyImage() {
+    try {
+        const blob = await fetchImageBlob();
+        const buffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(buffer);
+
+        let ext = 'png';
+        if (blob.type === 'image/jpeg') ext = 'jpg';
+        else if (blob.type === 'image/webp') ext = 'webp';
+        else if (blob.type === 'image/gif') ext = 'gif';
+
+        const temp = await tempDir();
+        const filename = `neotieba_clipboard_${Date.now()}.${ext}`;
+        const path = await join(temp, filename);
+        await writeFile(path, uint8Array);
+        await writeImage(path);
+    } catch (err) {
+        console.error('Copy failed', err);
+        return;
+    }
+    contextMenu.value.visible = false;
+}
+
 </script>
 
 <style scoped>
-.image-viewer {
+.image-viewer-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
+    background-color: rgba(0, 0, 0, 0.94);
+    backdrop-filter: blur(5px);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
     user-select: none;
-    background-color: rgba(0, 0, 0, 0.9);
-    z-index: 1000;
+    outline: none;
 }
 
-.image-container {
+.image-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     will-change: transform;
-    touch-action: none;
     cursor: grab;
 }
 
-.image-container:active {
+.image-wrapper:active {
     cursor: grabbing;
 }
 
-img {
-    max-width: 90vw;
-    max-height: 90vh;
+.viewer-image {
+    max-width: 85%;
+    max-height: 85%;
     object-fit: contain;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
     pointer-events: none;
-    -webkit-user-drag: none;
 }
 
-.controls {
+.controls-bar {
     position: fixed;
-    bottom: 20px;
-    left: 0;
-    right: 0;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(35, 35, 35, 0.9);
+    backdrop-filter: blur(15px);
+    padding: 12px 24px;
+    border-radius: 50px;
     display: flex;
-    justify-content: center;
-    gap: 20px;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-button {
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
-    background: rgba(255, 255, 255, 0.2);
+.control-btn {
+    background: transparent;
     border: none;
-    color: white;
+    color: #eee;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.control-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    transform: scale(1.15);
+}
+
+.control-btn:active {
+    transform: scale(0.9);
+}
+
+.control-btn.close-btn:hover {
+    background-color: rgba(255, 60, 60, 0.45);
+}
+
+.material-symbols-outlined {
+    font-size: 24px;
+}
+
+.zoom-info {
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-width: 52px;
+    text-align: center;
+    opacity: 0.95;
+    cursor: pointer;
+    padding: 4px 8px;
     border-radius: 4px;
-    backdrop-filter: blur(10px);
-    transition: background-color 0.3s;
+    transition: background-color 0.2s;
 }
 
-button:hover {
-    background: rgba(255, 255, 255, 0.3);
+.zoom-info:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* 进入/退出动画 */
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-    transition: all 0.3s ease;
+.zoom-slider {
+    width: 130px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
 }
 
-.fade-slide-enter-from,
-.fade-slide-leave-to {
+.zoom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.divider {
+    width: 1px;
+    height: 24px;
+    background-color: rgba(255, 255, 255, 0.2);
+    margin: 0 8px;
+}
+
+.context-menu {
+    position: fixed;
+    background: #1e1e1e;
+    border-radius: 12px;
+    padding: 8px;
+    min-width: 220px;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.7);
+    z-index: 10001;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    animation: menu-pop 0.15s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes menu-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.context-menu .menu-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 14px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.context-menu .menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.context-menu .menu-item .material-symbols-outlined {
+    font-size: 20px;
+    color: #ccc;
+}
+
+.menu-divider {
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.1);
+    margin: 6px 8px;
+}
+
+.zoom-preset-menu {
+    position: fixed;
+    background: #1e1e1e;
+    border-radius: 12px;
+    padding: 6px;
+    min-width: 100px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 10001;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.zoom-preset-menu .preset-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    border-radius: 6px;
+    text-align: center;
+    transition: background 0.2s;
+}
+
+.zoom-preset-menu .preset-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.zoom-preset-menu .preset-item.active {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
     opacity: 0;
-    transform: translateY(20px);
 }
 </style>

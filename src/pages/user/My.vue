@@ -16,6 +16,7 @@ const props = defineProps<Props>();
 // Emits 定义
 interface Emits {
   (e: 'FavouriteClicked'): void;
+  (e: 'HistoryClicked'): void;
   (e: 'userNameClicked', uid: string): void;
   (e: 'ThreadClicked', id: string | number): void;
   (e: 'setTabInfo', info: { key: string | number; title: string; icon: string }): void;
@@ -42,7 +43,6 @@ const api = apiStore.getApi();
 
 // Inject 定义
 const openImageViewer = inject<(url: string) => void>('openImageViewer');
-const deleteTab = inject<(key: string | number) => void>('deleteTab');
 const updateTabMeta = inject<(info: { key: string | number; title: string; icon: string }) => void>('updateTabMeta');
 
 // 初始化加载
@@ -145,14 +145,12 @@ const onThreadClicked = (id: string | number): void => {
 
 // 历史记录
 const history = (): void => {
-  if (deleteTab) {
-    deleteTab(props.key_);
-  }
+  emit('HistoryClicked');
 };
 </script>
 
 <template>
-  <Container @yscroll="onScroll">
+  <Container :scroll-key="`my-${props.key_}`" @yscroll="onScroll">
     <transition name="fade1">
       <div v-if="!isLoading">
         <div class="bar-banner">
