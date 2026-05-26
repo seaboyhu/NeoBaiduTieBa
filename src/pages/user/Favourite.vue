@@ -89,7 +89,7 @@ const handleClick = (id: string | number): void => {
 </script>
 
 <template>
-  <Container @yscroll="onScroll">
+  <Container :tab-key="props.key_" :scroll-key="`favourite-${props.key_}`" @yscroll="onScroll">
     <transition name="fade1">
       <div class="bgr" v-if="!isLoading">
         <div class="list-title">我的收藏</div>

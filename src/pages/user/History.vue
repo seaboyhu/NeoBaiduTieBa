@@ -45,7 +45,7 @@ function formatTime(timestamp: number): string {
 </script>
 
 <template>
-  <Container :scroll-key="`history-${props.key_}`">
+  <Container :tab-key="props.key_" :scroll-key="`history-${props.key_}`">
     <div class="history-page">
       <div class="history-header">
         <div>

@@ -79,22 +79,25 @@ async function saveUserList(userList: User[]): Promise<void> {
 }
 
 export async function addUser(user: User): Promise<boolean> {
-    user.current = false;
     let userList = await getUserList();
     userList = Array.isArray(userList) ? userList : [];
+    const shouldBeCurrent = user.current === true || userList.length === 0;
+    const nextUser: User = {
+        ...user,
+        current: shouldBeCurrent
+    };
 
-    if (userList.length === 0) {
-        user.current = true;
+    if (shouldBeCurrent) {
+        userList = userList.map(item => ({ ...item, current: false }));
     }
 
     const index = userList.findIndex(item => item.username === user.username);
     if (index !== -1) {
-        user.current = userList[index].current;
-        userList[index] = user;
+        userList[index] = nextUser;
         await saveUserList(userList);
         return true;
     } else {
-        userList.push(user);
+        userList.push(nextUser);
         await saveUserList(userList);
         return false;
     }

@@ -58,7 +58,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <Container>
+  <Container :tab-key="props.key_" :scroll-key="`follow-bar-${props.key_}`">
     <div class="bgr">
       <div class="list-title">关注的吧</div>
       <transition name="fade1">

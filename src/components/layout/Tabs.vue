@@ -9,7 +9,7 @@
       'show': !tab.show,
       'dragging': tabStore.draggingTabId === tab.id,
       'closing': tab.isClosing
-    }" :key="`${tab.id}-${tab.renderKey}`" :data-tab-id="tab.id" @click="handleClick(tab)"
+    }" :key="tab.id" :data-tab-id="tab.id" @click="handleClick(tab)"
       @mousedown.stop="startDrag($event, tab)" @mouseenter="showTabInfo = true; updateTabInfoPos(tab)"
       :style="getTabStyle(tab)">
       <div class="tab-content">

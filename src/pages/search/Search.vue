@@ -5,7 +5,7 @@ import Thread from '@/components/thread/Thread.vue';
 import { sanitize } from '@/utils/sanitizer';
 
 interface Props {
-  key_: unknown;
+  key_: string | number;
 }
 
 const isLoading = ref(false);
@@ -70,7 +70,7 @@ const onScroll = () => {
 </script>
 
 <template>
-  <Container @yscroll="onScroll">
+  <Container :tab-key="props.key_" :scroll-key="`search-${props.key_}`" @yscroll="onScroll">
     <div class="container1">
       <div class="list-title">搜索</div>
       <div class="navi-buttons">

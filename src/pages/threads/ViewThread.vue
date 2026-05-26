@@ -236,7 +236,7 @@ const ViewAllReplie = (data: SubPostInfo): void => {
 </script>
 
 <template>
-  <Container :scroll-key="`thread-${props.key_}`" @yscroll="onScroll">
+  <Container :tab-key="props.key_" :scroll-key="`thread-${props.key_}`" @yscroll="onScroll">
     <transition name="fade1">
       <div v-if="!isLoading">
         <div class="thread-list" v-if="!isDeleted" ref="captureRef">

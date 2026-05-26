@@ -162,7 +162,7 @@ const onScroll = (target: any) => {
 </script>
 
 <template>
-  <Container @yscroll="onScroll">
+  <Container :tab-key="props.key_" :scroll-key="`user-${props.key_}`" @yscroll="onScroll">
     <transition name="fade1">
       <div v-if="!isLoading">
         <div class="bar-banner">

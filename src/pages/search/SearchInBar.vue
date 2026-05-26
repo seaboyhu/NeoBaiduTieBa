@@ -4,7 +4,7 @@ import { useApiStore } from '@/stores';
 import Thread from '@/components/thread/Thread.vue';
 
 interface Props {
-  key_: unknown;
+  key_: string | number;
   barName: string;
   barIcon: string;
 }
@@ -85,7 +85,7 @@ const onScroll = (target: HTMLElement) => {
 </script>
 
 <template>
-  <Container @yscroll="onScroll">
+  <Container :tab-key="props.key_" :scroll-key="`search-in-bar-${props.key_}`" @yscroll="onScroll">
     <div class="container1">
       <div class="list-title">在 {{ barName }}吧 吧内搜索</div>
       <div class="navi-buttons">

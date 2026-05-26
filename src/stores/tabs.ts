@@ -102,8 +102,6 @@ export const useTabStore = defineStore('tabs', () => {
     const tab = tabs.value.find(t => t.key === key);
     if (tab) {
       tab.renderKey = `${key}-${Date.now()}`;
-      tab.icon = '/assets/loading.svg';
-      tab.title = '正在加载';
     }
   }
 

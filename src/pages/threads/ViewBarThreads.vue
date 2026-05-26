@@ -244,7 +244,7 @@ onMounted(async (): Promise<void> => {
 </script>
 
 <template>
-  <Container :scroll-key="`bar-${props.key_}`" @yscroll="onScroll">
+  <Container :tab-key="props.key_" :scroll-key="`bar-${props.key_}`" @yscroll="onScroll">
     <transition name="fade1">
       <div v-if="!isLoading" ref="captureRef">
         <div class="bar-banner">

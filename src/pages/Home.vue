@@ -1,5 +1,5 @@
 <template>
-  <Container @yscroll="onScroll">
+  <Container :tab-key="props.key_" :scroll-key="`home-${props.key_}`" @yscroll="onScroll">
     <transition name="fade1">
       <div v-if="!isLoading" class="bgr">
         <div class="list-title">为你推荐</div>

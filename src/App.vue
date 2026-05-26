@@ -400,19 +400,12 @@ function onRefreshTab(id: number): void {
   const isActiveTab = (activeTab.value as TabItem).key === key;
   const newRenderKey = `${key}-${Date.now()}`;
 
-  tabStore.setTab(id, {
-    ...tabItem,
-    renderKey: newRenderKey,
-    icon: '/assets/loading.svg',
-    title: '正在加载'
-  });
+  tabStore.setTab(id, { renderKey: newRenderKey });
 
   if (isActiveTab && activeTab.value && typeof activeTab.value === 'object') {
     activeTab.value = {
       ...activeTab.value,
-      renderKey: newRenderKey,
-      icon: '/assets/loading.svg',
-      title: '正在加载'
+      renderKey: newRenderKey
     } as TabItem;
   }
 }

@@ -150,7 +150,7 @@ const history = (): void => {
 </script>
 
 <template>
-  <Container :scroll-key="`my-${props.key_}`" @yscroll="onScroll">
+  <Container :tab-key="props.key_" :scroll-key="`my-${props.key_}`" @yscroll="onScroll">
     <transition name="fade1">
       <div v-if="!isLoading">
         <div class="bar-banner">

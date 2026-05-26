@@ -22,11 +22,9 @@ const instance = getCurrentInstance();
 const emit = defineEmits<{
   (e: 'openLocalThread', path: string | null): void;
 }>();
-const props = defineProps({
-  key_: {
-    required: true
-  },
-});
+const props = defineProps<{
+  key_: string | number;
+}>();
 
 onMounted(() => {
   updateTabMeta?.({ key: props.key_, title: "调试", icon: "/assets/bug.svg" });
@@ -89,7 +87,7 @@ const permissionInfo = ref([{
 </script>
 
 <template>
-  <Container>
+  <Container :tab-key="props.key_" :scroll-key="`debug-${props.key_}`">
     <div>调试工具</div>
     <button @click="notify">notify</button>
     <button @click="throw Error('跌我错了');">throw</button>
