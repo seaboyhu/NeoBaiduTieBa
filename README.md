@@ -32,7 +32,9 @@ NeoTieBa 以开放的态度开发, 欢迎提交 PR 以及相关探索. 感谢支
 
 ## 🐛 尝鲜与调试
 
-可以从 GitHub Actions 中下载尝鲜版. 请前往 `Actions` → 最新一条成功的 `Test Build` → `Artifacts` 下载对应平台应用. 
+可以从 Releases 中下载构建版.
+
+可以从 GitHub Actions 中下载最新尝鲜版. 请前往 `Actions` → 最新一条成功的 `Test Build` → `Artifacts` 下载对应平台应用. 
 
 > [!note]
 >
