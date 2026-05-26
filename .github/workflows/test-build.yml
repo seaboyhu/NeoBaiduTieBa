@@ -26,11 +26,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.2
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: pnpm
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -44,14 +49,15 @@ jobs:
           key: ${{ matrix.target }}
 
       - name: Install frontend
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build frontend
-        run: npm run build
+        run: pnpm build
 
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0.5
         with:
+          tauriScript: pnpm tauri
           args: --target ${{ matrix.target }}
 
       - name: Upload artifacts
