@@ -50,7 +50,13 @@ NeoTieBa 以开放的态度开发, 欢迎提交 PR 以及相关探索. 感谢支
 
 ### 调试
 
-确保具备最新的 Tauri 应用调试环境. 使用 `npm run tauri dev` 来运行 Dev 版, 使用 `npm run tauri build` 进行应用构建.
+确保具备最新的 Tauri 应用调试环境.
+
+安装包依赖: `pnpm install`
+
+运行 Dev 版: `pnpm tauri dev`
+
+构建发布版: `pnpm tauri build`
 
 
 
