@@ -9,7 +9,10 @@
       </div>
     </div>
     <div class="thread-preview">
-      <div class="thread-title">{{ thread_title }}</div>
+      <div class="thread-title-row">
+        <span v-if="is_good" class="good-mark" :style="{ color: theme_color }">精</span>
+        <span class="thread-title">{{ thread_title }}</span>
+      </div>
       <div class="thread-content" v-html="content">
       </div>
       <div class="thread-media">
@@ -50,6 +53,8 @@ const props = withDefaults(defineProps<{
   media: MediaItem[];
   create_time: number;
   reply_num: number;
+  is_good?: boolean | number;
+  theme_color?: string;
 }>(), {
   fromBarAvatar: '',
   fromBar: '',
@@ -59,7 +64,9 @@ const props = withDefaults(defineProps<{
   thread_content: () => [],
   media: () => [],
   create_time: 0,
-  reply_num: 0
+  reply_num: 0,
+  is_good: false,
+  theme_color: 'var(--text-color)'
 })
 
 const content = ref<string>('')
@@ -108,6 +115,19 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.thread-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.good-mark {
+  flex: 0 0 auto;
+  font-size: 130%;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .thread-preview .thread-title {

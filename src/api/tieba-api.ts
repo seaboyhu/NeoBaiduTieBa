@@ -150,7 +150,11 @@ export class tieBaAPI {
 
     async browseBar(barName: string, page = 1, browseOptions: BrowseBarProtoOptions = {}): Promise<any> {
         try {
-            return await browse_bar_protobuf(barName, page, this.getRequestOptions(), browseOptions);
+            return await browse_bar_protobuf(barName, page, {
+                ...this.getRequestOptions(),
+                bduss: browseOptions.bduss,
+                stoken: browseOptions.stoken,
+            }, browseOptions);
         } catch (error) {
             console.warn('FrsPage protobuf request failed, falling back to JSON:', error);
             return await this.browseBarJson(barName, page, browseOptions);
@@ -169,6 +173,14 @@ export class tieBaAPI {
             `sort_type=${browseOptions.sortType ?? 6}`,
             `is_good=${browseOptions.isGood ? 1 : 0}`,
         ];
+
+        if (browseOptions.bduss) {
+            params.push(`BDUSS=${encodeURIComponent(browseOptions.bduss)}`);
+        }
+        if (browseOptions.stoken) {
+            params.push(`stoken=${encodeURIComponent(browseOptions.stoken)}`);
+        }
+
         const data = params.join('&');
         const responseData = await fetchData('http://c.tieba.baidu.com/c/f/frs/page?' + this.calcSign(data), this.getRequestOptions());
         return JSON.parse(responseData);

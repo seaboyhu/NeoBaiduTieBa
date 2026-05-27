@@ -4,6 +4,7 @@ import { useApiStore } from '@/stores';
 import PinnedThread from '@/components/thread/PinnedThread.vue';
 import Thread from '@/components/thread/Thread.vue';
 import BarInfoCard from '@/components/user/BarInfoCard.vue';
+import { getCurrentUser, type User as ManagedUser } from '@/services/user-manage';
 import domToImage from 'dom-to-image';
 
 interface Props {
@@ -51,8 +52,14 @@ interface User {
 interface ForumData {
   forum: {
     name: string;
+    id?: string | number;
     avatar: string;
     slogan?: string;
+    cur_score?: number;
+    level_id?: number;
+    level_name?: string;
+    levelup_score?: number;
+    user_level?: number;
     theme_color?: {
       dark?: {
         light_color?: string;
@@ -118,14 +125,47 @@ const isThreadsLoading: Ref<boolean> = ref<boolean>(true);
 const pinnedThreadList: Ref<ThreadItem[]> = ref<ThreadItem[]>([]);
 const threadList: Ref<ThreadItem[]> = ref<ThreadItem[]>([]);
 const currentPage: Ref<number> = ref<number>(1);
+const currentUser = ref<ManagedUser | null>(null);
 const isGoodOnly = ref<boolean>(false);
 const threadSortType = ref<number>(BAR_SORT_REPLY);
 const threadScopeLabel = computed(() => isGoodOnly.value ? '精华帖子' : '全部帖子');
 const threadSortLabel = computed(() => threadSortType.value === BAR_SORT_CREATE ? '发布时间排序' : '回复时间排序');
+const themeColor = computed(() => {
+  const color = returnData.value.forum.theme_color?.dark?.light_color?.replace('#', '');
+  return color ? `#${color}` : 'var(--text-color)';
+});
+const forumLevelId = computed(() => Number(returnData.value.forum.level_id ?? returnData.value.forum.user_level ?? 0));
+const forumLevelName = computed(() => returnData.value.forum.level_name?.trim() || '吧等级');
+const forumCurScore = computed(() => Math.max(0, Number(returnData.value.forum.cur_score ?? 0)));
+const forumLevelupScore = computed(() => Math.max(0, Number(returnData.value.forum.levelup_score ?? 0)));
+const levelProgressPercent = computed(() => {
+  if (forumLevelupScore.value <= 0) {
+    return 0;
+  }
+  return Math.min(100, Math.round((forumCurScore.value / forumLevelupScore.value) * 100));
+});
+const levelScoreText = computed(() => {
+  if (forumLevelupScore.value <= 0) {
+    return `${forumCurScore.value}`;
+  }
+  return `${forumCurScore.value}/${forumLevelupScore.value}`;
+});
 
 // API实例
 const apiStore = useApiStore();
 const api = apiStore.getApi();
+
+const loadCurrentUser = async (): Promise<void> => {
+  if (currentUser.value) {
+    return;
+  }
+
+  try {
+    currentUser.value = await getCurrentUser();
+  } catch {
+    currentUser.value = null;
+  }
+};
 
 // 搜索吧内
 const SearchInBar = (): void => {
@@ -213,11 +253,14 @@ const onScroll = (target: { scrollTop: number; clientHeight: number; scrollHeigh
 const loadData = async (): Promise<void> => {
   try {
     isThreadsLoading.value = true;
+    await loadCurrentUser();
 
     // 获取吧数据
     let data = await api.browseBar(props.barName, currentPage.value, {
       isGood: isGoodOnly.value,
-      sortType: threadSortType.value
+      sortType: threadSortType.value,
+      bduss: currentUser.value?.bduss,
+      stoken: currentUser.value?.stoken
     });
 
     // 通过插件管理器处理数据
@@ -230,6 +273,8 @@ const loadData = async (): Promise<void> => {
 
     // 首页特殊处理
     if (currentPage.value === 1) {
+      await loadForumLevelInfo();
+
       updateTabMeta?.({
         key: props.key_,
         title: `${returnData.value.forum.name}吧`,
@@ -286,6 +331,30 @@ const loadData = async (): Promise<void> => {
   }
 };
 
+const loadForumLevelInfo = async (): Promise<void> => {
+  const forumId = returnData.value.forum.id;
+  const user = currentUser.value;
+
+  if (!forumId || !user?.bduss) {
+    return;
+  }
+
+  try {
+    const response = await api.getUserForumLevelInfo(String(forumId), user.bduss, user.stoken);
+    const userForumInfo = response?.data?.user_forum_info ?? {};
+
+    returnData.value.forum = {
+      ...returnData.value.forum,
+      level_id: Number(userForumInfo.level_id ?? returnData.value.forum.level_id ?? 0),
+      level_name: String(userForumInfo.level_name ?? returnData.value.forum.level_name ?? ''),
+      cur_score: Number(userForumInfo.cur_score ?? returnData.value.forum.cur_score ?? 0),
+      levelup_score: Number(userForumInfo.levelup_score ?? returnData.value.forum.levelup_score ?? 0),
+    };
+  } catch (error) {
+    console.warn('Failed to load forum level info:', error);
+  }
+};
+
 onMounted(async (): Promise<void> => {
   isLoading.value = true;
   await loadData();
@@ -315,8 +384,16 @@ onMounted(async (): Promise<void> => {
                 </RippleButton>
               </div>
               <div class="description">{{ returnData.forum.slogan || '暂无简介' }}</div>
-              <div>
-                登录以签到
+              <div class="level-info">
+                <div class="level-text">
+                  <span class="level-label" :style="{ color: themeColor }">Lv.{{ forumLevelId }}</span>
+                  <span>{{ forumLevelName }}</span>
+                </div>
+                <div class="level-progress">
+                  <div class="level-progress-bar"
+                    :style="{ width: `${levelProgressPercent}%`, backgroundColor: themeColor }"></div>
+                </div>
+                <span class="level-score"> ({{ levelScoreText }})</span>
               </div>
             </div>
           </div>
@@ -369,7 +446,8 @@ onMounted(async (): Promise<void> => {
             v-for="item in threadList" :key="item.id" :thread_title="item.title" :media="(item.media || []) as any"
             :user_name="item.author?.name_show || item.author?.name || '匿名用户'" :avatar="item.author?.portrait || ''"
             :thread_content="(item.rich_abstract?.length === 0 || !Array.isArray(item.rich_abstract) ? [{ type: 0, text: item.title }] : item.rich_abstract) as any"
-            :create_time="item.last_time_int" :reply_num="item.reply_num"></Thread>
+            :create_time="item.last_time_int" :reply_num="item.reply_num"
+            :is_good="Boolean(item.isGood ?? item.is_good)" :theme_color="themeColor"></Thread>
         </div>
       </div>
     </transition>
@@ -435,8 +513,49 @@ onMounted(async (): Promise<void> => {
 }
 
 .banner-content .description {
-  margin-top: 5px;
   opacity: 0.5;
+}
+
+.level-info {
+  margin-top: 5px;
+  width: min(360px, 44vw);
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  align-items: center;
+}
+
+.level-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.level-label {
+  font-weight: 700;
+}
+
+.level-score {
+  opacity: 0.65;
+}
+
+.level-progress {
+  width: 100%;
+  height: 5px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: rgba(var(--text-color), 0.14);
+}
+
+.level-progress-bar {
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  transition: width 0.2s ease;
 }
 
 .banner-content {

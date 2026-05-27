@@ -4,6 +4,7 @@ import { postProtobuf, type RequestOptions } from '@/core/request';
 
 export interface ProtoCallOptions extends RequestOptions {
     bduss?: string;
+    stoken?: string;
 }
 
 export function createCommon(clientVersion: string, options: ProtoCallOptions = {}): Record<string, unknown> {
@@ -14,6 +15,10 @@ export function createCommon(clientVersion: string, options: ProtoCallOptions = 
 
     if (options.bduss) {
         common.BDUSS = options.bduss;
+    }
+
+    if (options.stoken) {
+        common.stoken = options.stoken;
     }
 
     return common;

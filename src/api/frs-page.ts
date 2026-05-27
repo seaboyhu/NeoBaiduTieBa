@@ -10,6 +10,8 @@ export interface BrowseBarProtoOptions {
     rn?: number;
     sortType?: number;
     isGood?: boolean;
+    bduss?: string;
+    stoken?: string;
 }
 
 function stringValue(value: unknown, fallback = ''): string {
@@ -70,6 +72,11 @@ function normalizeForum(raw: AnyRecord = {}, fallbackName = ''): AnyRecord {
         name: stringValue(raw.name, fallbackName),
         first_class: stringValue(raw.firstClass ?? raw.first_class),
         second_class: stringValue(raw.secondClass ?? raw.second_class),
+        cur_score: numberValue(raw.curScore ?? raw.cur_score),
+        level_id: numberValue(raw.levelId ?? raw.level_id),
+        levelup_score: numberValue(raw.levelupScore ?? raw.levelup_score),
+        level_name: stringValue(raw.levelName ?? raw.level_name),
+        user_level: numberValue(raw.userLevel ?? raw.user_level),
         member_num: numberValue(raw.memberNum ?? raw.member_num),
         post_num: numberValue(raw.postNum ?? raw.post_num),
         thread_num: numberValue(raw.threadNum ?? raw.thread_num),

@@ -37,10 +37,15 @@ message FrsPageResIdl {
             string name = 2;
             string first_class = 3;
             string second_class = 4;
+            int32 cur_score = 5;
+            int32 level_id = 6;
+            int32 levelup_score = 7;
+            string level_name = 8;
             int32 member_num = 9;
             int32 thread_num = 10;
             int32 post_num = 11;
             repeated Manager managers = 17;
+            int32 user_level = 19;
             string avatar = 24;
             string slogan = 25;
             ThemeColorInfo theme_color = 73;
