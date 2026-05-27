@@ -1,0 +1,68 @@
+// tbclient.FrsPage.FrsPageResIdl
+syntax = "proto3";
+
+import "Error.proto";
+import "Page.proto";
+import "ThreadInfo.proto";
+import "User.proto";
+import "FrsTabInfo.proto";
+
+message FrsPageResIdl {
+    Error error = 1;
+
+    message DataRes {
+        message ForumInfo {
+            message Manager {
+                int64 id = 1;
+                string name = 2;
+                string show_name = 3;
+                string portrait = 4;
+            }
+
+            message ThemeColorInfo {
+                message Color {
+                    string common_color = 1;
+                    string dark_color = 2;
+                    string light_color = 3;
+                    string pattern_image = 4;
+                    string font_color = 5;
+                }
+
+                Color day = 1;
+                Color night = 2;
+                Color dark = 3;
+            }
+
+            int64 id = 1;
+            string name = 2;
+            string first_class = 3;
+            string second_class = 4;
+            int32 member_num = 9;
+            int32 thread_num = 10;
+            int32 post_num = 11;
+            repeated Manager managers = 17;
+            string avatar = 24;
+            string slogan = 25;
+            ThemeColorInfo theme_color = 73;
+            string f_share_img = 78;
+            string forum_share_link = 79;
+        }
+
+        message NavTabInfo {
+            repeated FrsTabInfo tab = 1;
+        }
+
+        message ForumRuleStatus {
+            int32 has_forum_rule = 4;
+        }
+
+        ForumInfo forum = 2;
+        Page page = 4;
+        repeated ThreadInfo thread_list = 7;
+        repeated User user_list = 17;
+        NavTabInfo nav_tab_info = 37;
+        ForumRuleStatus forum_rule = 105;
+    }
+
+    DataRes data = 2;
+}

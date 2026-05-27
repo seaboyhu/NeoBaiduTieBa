@@ -164,6 +164,7 @@ const loadData = async (): Promise<void> => {
         icon: forum.avatar
       });
 
+
       // 合并用户列表，避免重复
       const existingUserIds = new Set(userList.value.map(u => u.id));
       const uniqueNewUsers = newUsers.filter(user => !existingUserIds.has(user.id));

@@ -22,6 +22,8 @@ export const PROTO_MESSAGES: Record<string, ProtoMessageConfig> = {
     UserPostResIdl: { path: 'UserPost/UserPostResIdl.proto', namespace: 'UserPost' },
     PbPageReqIdl: { path: 'PbPage/PbPageReqIdl.proto', namespace: 'PbPage' },
     PbPageResIdl: { path: 'PbPage/PbPageResIdl.proto', namespace: 'PbPage' },
+    FrsPageReqIdl: { path: 'FrsPage/FrsPageReqIdl.proto', namespace: 'FrsPage' },
+    FrsPageResIdl: { path: 'FrsPage/FrsPageResIdl.proto', namespace: 'FrsPage' },
 };
 
 export const PROTO_ENDPOINTS = {
@@ -49,6 +51,15 @@ export const PROTO_ENDPOINTS = {
         requestMessage: 'UserPostReqIdl',
         responseMessage: 'UserPostResIdl',
         clientVersion: '8.9.8.5',
+        fileName: 'file',
+        auth: 'none',
+    },
+    barPage: {
+        id: 'barPage',
+        url: 'http://tiebac.baidu.com/c/f/frs/page?cmd=301001',
+        requestMessage: 'FrsPageReqIdl',
+        responseMessage: 'FrsPageResIdl',
+        clientVersion: '12.64.1.1',
         fileName: 'file',
         auth: 'none',
     },

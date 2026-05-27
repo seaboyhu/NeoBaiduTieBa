@@ -50,11 +50,13 @@ function formatTime(timestamp: number): string {
       <div class="history-header">
         <div>
           <h2>浏览历史</h2>
-          <p>只记录本地打开过的帖子、贴吧和用户页。</p>
+          <p>这里记录了你最近打开的页面</p>
         </div>
         <RippleButton class="clear-button" @click="historyStore.clearHistory()">
-          <span class="material-symbols-outlined">delete</span>
-          清空
+          <div style="display: flex; gap: 10px">
+            <span class="material-symbols-outlined">delete</span>
+            清空
+          </div>
         </RippleButton>
       </div>
 
@@ -65,12 +67,14 @@ function formatTime(timestamp: number): string {
 
       <div v-else class="history-list">
         <RippleButton v-for="item in historyItems" :key="item.id" class="history-item" @click="openItem(item)">
-          <img class="item-icon-img" :src="item.icon" referrerpolicy="no-referrer">
-          <div class="item-main">
-            <div class="item-title">{{ item.title }}</div>
-            <div class="item-meta">{{ formatTime(item.timestamp) }}</div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <img class="item-icon-img" :src="item.icon" referrerpolicy="no-referrer">
+            <div class="item-main">
+              <div class="item-title">{{ item.title }}</div>
+              <div class="item-meta">{{ formatTime(item.timestamp) }}</div>
+            </div>
+            <span class="material-symbols-outlined item-arrow">chevron_right</span>
           </div>
-          <span class="material-symbols-outlined item-arrow">chevron_right</span>
         </RippleButton>
       </div>
     </div>

@@ -48,7 +48,11 @@ NeoTieBa 以开放的态度开发, 欢迎提交 PR 以及相关探索. 感谢支
 
 ### 登录方法
 
-前往 `设置` → `账号管理` 添加账户. 建议使用百度网盘扫码.
+前往 `设置` → `账号管理` 添加账户.
+
+最为稳妥的方式是使用 Cookie 登录. 请前往百度贴吧网页版并登录, 使用开发者工具抓取数据包, 得到 BDUSS 与 STOKEN 并填写到对话框.
+
+如需扫码登录, 建议使用百度网盘扫码.
 
 ### 调试
 
@@ -130,9 +134,11 @@ NeoTieBa 以开放的态度开发, 欢迎提交 PR 以及相关探索. 感谢支
 
 ## 💧 感谢
 
-本项目参考了以下项目(或页面)提供的源码: 
+本项目参考了以下项目 (或页面) 提供的源码: 
 
 [HuanCheng65/TiebaLite: 贴吧 Lite](https://github.com/HuanCheng65/TiebaLite)
+
+[clb-128258/TiebaDesktop: 非官方的百度贴吧电脑客户端，目前支持 Windows 系统](https://github.com/clb-128258/TiebaDesktop)
 
 [n0099/tbclient.protobuf: 从 244 个历史版本百度贴吧客户端中提取出的所有 Protocol Buffers 定义文件 `.proto`](https://github.com/n0099/tbclient.protobuf)
 
@@ -141,7 +147,6 @@ NeoTieBa 以开放的态度开发, 欢迎提交 PR 以及相关探索. 感谢支
 [解读keep-alive: Vue3中手动清理keep-alive组件缓存的一个解决方案 - 没有星星的夏季 - 博客园](https://www.cnblogs.com/shanfeng1000/p/16692266.html)
 
 [Material Symbols & Icons - Google Fonts](https://fonts.google.com/icons)
-
 
 
 ## 🔗 友情链接

@@ -35,6 +35,7 @@ interface ThreadItem {
   rich_abstract?: unknown[];
   last_time_int: number;
   reply_num: number;
+  view_num: number;
   [key: string]: unknown;
 }
 
@@ -43,6 +44,7 @@ interface User {
   name: string;
   name_show?: string;
   portrait: string;
+  ip_address: string;
   [key: string]: unknown;
 }
 

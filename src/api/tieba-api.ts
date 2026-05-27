@@ -9,6 +9,7 @@ import {
 import { user_info_protobuf } from "@/api/user-info";
 import { user_post_protobuf } from "@/api/user-post";
 import { get_post_proto } from "@/api/get-post";
+import { browse_bar_protobuf } from "@/api/frs-page";
 import { useSettingsStore } from '@/stores/settings';
 import { normalizeThreadPage, normalizeUserPostPage, normalizeUserProfile } from '@/api/adapters';
 import type { ThreadPage, UserPostPage, UserProfile } from '@/types/client';
@@ -148,6 +149,15 @@ export class tieBaAPI {
     }
 
     async browseBar(barName: string, page = 1): Promise<any> {
+        try {
+            return await browse_bar_protobuf(barName, page, this.getRequestOptions());
+        } catch (error) {
+            console.warn('FrsPage protobuf request failed, falling back to JSON:', error);
+            return await this.browseBarJson(barName, page);
+        }
+    }
+
+    private async browseBarJson(barName: string, page = 1): Promise<any> {
         const data = `_client_type=2&_client_version=8.6.8.0&kw=${encodeURIComponent(barName)}&pn=${page}&q_type=2&rn=50&with_group=1`;
         const responseData = await fetchData('http://c.tieba.baidu.com/c/f/frs/page?' + this.calcSign(data), this.getRequestOptions());
         return JSON.parse(responseData);
