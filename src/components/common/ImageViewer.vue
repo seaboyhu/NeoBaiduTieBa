@@ -1,12 +1,12 @@
 <template>
     <Transition name="fade">
         <div v-if="props.visible" class="image-viewer-overlay" @click.self="handleClose"
-            @contextmenu.prevent="handleContextMenu" tabindex="0" @keydown="handleKeydown" ref="overlayRef">
+            @contextmenu="handleContextMenu" tabindex="0" @keydown="handleKeydown" ref="overlayRef">
             <!-- Main Image Container -->
             <div class="image-wrapper" :style="wrapperStyle" @mousedown="handleMouseDown" @wheel.prevent="handleWheel"
                 @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
                 <img ref="imageRef" :src="props.imageSrc" class="viewer-image" alt="Preview" draggable="false"
-                    @load="onImageLoad" />
+                    referrerpolicy="no-referrer" @load="onImageLoad" />
             </div>
 
             <!-- Controls Bar -->
@@ -45,15 +45,6 @@
 
                 <div class="divider"></div>
 
-                <button class="control-btn" @click="saveImage" title="另存为">
-                    <span class="material-symbols-outlined">save</span>
-                </button>
-                <button class="control-btn" @click="copyImage" title="复制">
-                    <span class="material-symbols-outlined">content_copy</span>
-                </button>
-
-                <div class="divider"></div>
-
                 <button class="control-btn close-btn" @click="handleClose" title="关闭">
                     <span class="material-symbols-outlined">close</span>
                 </button>
@@ -62,15 +53,6 @@
             <!-- Context Menu -->
             <div v-if="contextMenu.visible" class="context-menu"
                 :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }" @click.stop>
-                <div class="menu-item" @click="copyImage">
-                    <span class="material-symbols-outlined">content_copy</span>
-                    <span>复制图片</span>
-                </div>
-                <div class="menu-item" @click="saveImage">
-                    <span class="material-symbols-outlined">save</span>
-                    <span>另存为...</span>
-                </div>
-                <div class="menu-divider"></div>
                 <div class="menu-item" @click="resetView">
                     <span class="material-symbols-outlined">restart_alt</span>
                     <span>重置视图</span>
@@ -91,10 +73,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
-import { save } from '@tauri-apps/plugin-dialog';
-import { writeFile } from '@tauri-apps/plugin-fs';
-import { writeImage } from 'tauri-plugin-clipboard-x-api';
-import { tempDir, join } from '@tauri-apps/api/path';
 
 const props = defineProps<{
     imageSrc: string;
@@ -104,6 +82,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'close'): void;
 }>();
+
 
 // State
 const scale = ref(1);
@@ -188,6 +167,7 @@ watch(() => props.visible, (newVal) => {
         });
     }
 });
+
 
 watch([scale, rotation], () => {
     nextTick(() => clampTranslation());
@@ -371,6 +351,14 @@ function resetView() {
 
 // Context Menu
 function handleContextMenu(e: MouseEvent) {
+    if ((e.target as HTMLElement | null)?.closest('.viewer-image')) {
+        contextMenu.value.visible = false;
+        zoomMenu.value.visible = false;
+        return;
+    }
+
+    e.preventDefault();
+
     const menuWidth = 220;
     const menuHeight = 180;
     let x = e.clientX;
@@ -403,63 +391,6 @@ function setZoom(preset: number) {
     zoomMenu.value.visible = false;
 }
 
-// API Functions
-async function fetchImageBlob(): Promise<Blob> {
-    const response = await fetch(props.imageSrc);
-    if (!response.ok) throw new Error('Failed to fetch image');
-    return await response.blob();
-}
-
-async function saveImage() {
-    try {
-        const blob = await fetchImageBlob();
-        const buffer = await blob.arrayBuffer();
-        const uint8Array = new Uint8Array(buffer);
-
-        let ext = 'jpg';
-        if (blob.type === 'image/png') ext = 'png';
-        else if (blob.type === 'image/webp') ext = 'webp';
-        else if (blob.type === 'image/gif') ext = 'gif';
-
-        const path = await save({
-            filters: [{
-                name: 'Image',
-                extensions: ['jpg', 'png', 'webp', 'gif']
-            }],
-            defaultPath: `image_${Date.now()}.${ext}`
-        });
-
-        if (path) {
-            await writeFile(path, uint8Array);
-        }
-    } catch (err) {
-        console.error('Save failed', err);
-    }
-    contextMenu.value.visible = false;
-}
-
-async function copyImage() {
-    try {
-        const blob = await fetchImageBlob();
-        const buffer = await blob.arrayBuffer();
-        const uint8Array = new Uint8Array(buffer);
-
-        let ext = 'png';
-        if (blob.type === 'image/jpeg') ext = 'jpg';
-        else if (blob.type === 'image/webp') ext = 'webp';
-        else if (blob.type === 'image/gif') ext = 'gif';
-
-        const temp = await tempDir();
-        const filename = `neotieba_clipboard_${Date.now()}.${ext}`;
-        const path = await join(temp, filename);
-        await writeFile(path, uint8Array);
-        await writeImage(path);
-    } catch (err) {
-        console.error('Copy failed', err);
-        return;
-    }
-    contextMenu.value.visible = false;
-}
 
 </script>
 
@@ -504,7 +435,7 @@ async function copyImage() {
     max-height: 85%;
     object-fit: contain;
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
-    pointer-events: none;
+    pointer-events: auto;
 }
 
 .controls-bar {

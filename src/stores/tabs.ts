@@ -31,8 +31,9 @@ export const useTabStore = defineStore('tabs', () => {
       title: config.title || '',
       component: config.component ? markRaw(config.component) : null,
       props: config.props || {},
-      icon_invert: false,
-      show: true,
+      icon_invert: config.icon_invert ?? false,
+      show: config.show ?? true,
+      closable: config.closable ?? true,
       position: tabs.value.length,
       desc: config.title || '',
       content: '',
@@ -60,13 +61,14 @@ export const useTabStore = defineStore('tabs', () => {
   }
 
   function removeTab(id: number | string) {
-    const tab = tabs.value.find(t => t.id === id);
+    const tab = tabs.value.find(t => t.id === id || t.key === String(id));
     if (!tab) return;
+    if (tab.closable === false) return;
 
     const wasActive = tab.selected;
-    const idx = tabs.value.findIndex(t => t.id === id);
+    const idx = tabs.value.findIndex(t => t.id === tab.id);
 
-    tabs.value = tabs.value.filter(t => t.id !== id);
+    tabs.value = tabs.value.filter(t => t.id !== tab.id);
 
     const closingTab: TabItem = {
       ...tab,

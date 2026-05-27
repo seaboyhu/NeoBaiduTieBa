@@ -570,7 +570,7 @@ onMounted(async (): Promise<void> => {
   });
 
   const key = generateUniqueId('Welcome');
-  tabStore.addTab({ key: String(key), icon: "/assets/apps.svg", title: "欢迎", component: Welcome, props: { key_: key }, origin: ({ icon: "/assets/apps.svg", title: "欢迎" } as unknown) as import('@/types/common').TabItem });
+  tabStore.addTab({ key: String(key), icon: "/assets/apps.svg", title: "欢迎", component: Welcome, props: { key_: key }, show: false, closable: false, origin: ({ icon: "/assets/apps.svg", title: "欢迎" } as unknown) as import('@/types/common').TabItem });
 });
 </script>
 

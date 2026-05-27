@@ -3,7 +3,7 @@
     @before-leave="(el: Element) => setItemPosition(el as HTMLElement)"
     @leave="(el: Element, done: () => void) => handleLeave(el as HTMLElement, done)" @mousedown="startDragging"
     @mouseup="stopDragging" @mouseleave="stopDragging; showTabInfo = false;" @dblclick="handleTabsDblClick">
-    <RippleButton class="tab-ripplebutton" v-for="tab in tabStore.visibleTabs" :class="{
+    <RippleButton class="tab-ripplebutton" v-for="tab in displayedTabs" :class="{
       'selected': tab.selected,
       'invert': tab.icon_invert,
       'show': !tab.show,
@@ -15,7 +15,7 @@
       <div class="tab-content">
         <img class="icon" :src="getIconPath(tab.icon)" referrerpolicy="no-referrer" />
         <div class="title">{{ tab.title }}</div>
-        <span class="material-symbols-outlined" id="close" style="font-size: 12px;" @click.stop
+        <span v-if="tab.closable !== false" class="material-symbols-outlined" id="close" style="font-size: 12px;" @click.stop
           @click="showTabInfo = false; handleDelete(tab)">close</span>
       </div>
     </RippleButton>
@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import type { TabItem } from '@/types/common';
-import { ref, onBeforeUnmount, nextTick, type Component, watch } from 'vue';
+import { computed, ref, onBeforeUnmount, nextTick, type Component, watch } from 'vue';
 import { useTabStore } from '@/stores/tabs';
 import RippleButton from '#components/common/RippleButton.vue';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -70,6 +70,7 @@ const tabMouseOn = ref<TabMouseOnInfo>({
 });
 
 const tabStore = useTabStore();
+const displayedTabs = computed(() => tabStore.visibleTabs.filter((tab: TabItem) => tab.show));
 
 // Emit events for parent components
 const emit = defineEmits<{
@@ -102,7 +103,7 @@ const isDragging = ref(false);
 const updateTabInfoPos = (tab: TabItem): void => {
   const elem = document.getElementsByClassName('tab-info')[0] as HTMLElement | undefined;
   const tabEls = document.querySelectorAll('.tab-ripplebutton');
-  const tabIndex = tabStore.visibleTabs.indexOf(tab);
+  const tabIndex = displayedTabs.value.indexOf(tab);
   const currentTab = Array.from(tabEls)[tabIndex] as HTMLElement | undefined;
   if (!elem || !currentTab) return;
 

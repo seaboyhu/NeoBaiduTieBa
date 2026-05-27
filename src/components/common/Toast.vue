@@ -61,11 +61,12 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  position: absolute;
-  z-index: 2000;
+  position: fixed;
+  z-index: 11000;
   bottom: 15px;
   left: 0px;
   width: 100%;
+  pointer-events: none;
 }
 
 .toast-content {
@@ -79,6 +80,7 @@ defineExpose({
   align-self: center;
   align-items: center;
   font-size: 14px;
+  pointer-events: auto;
 }
 
 .toast-title {

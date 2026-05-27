@@ -1,17 +1,17 @@
 <template>
   <div style="padding-bottom: 10px;">
 
-    <div style="font-weight: bold; margin-left: 10px; margin: 10px; font-size: 15px;">打开的标签 ({{ tabStore.tabs.length }})
+    <div style="font-weight: bold; margin-left: 10px; margin: 10px; font-size: 15px;">打开的标签 ({{ displayedTabs.length }})
     </div>
     <div class="tabs-list-">
       <transition-group name="tab-list" tag="div" class="tabs-list-">
-        <RippleButton class="tab-ripplebutton" v-for="tab in tabStore.tabs"
+        <RippleButton class="tab-ripplebutton" v-for="tab in displayedTabs"
           :class="{ 'selected': tab.selected, 'invert': tab.icon_invert, 'show': !tab.show }" :key="tab.id"
           @click="tabStore.switchTab(tab.key)">
           <div class="tab-content">
             <img class="icon" :src="getIconPath(tab.icon)" referrerpolicy="no-referrer" />
             <div class="title">{{ tab.title }}</div>
-            <span class="material-symbols-outlined" id="close" style="font-size: 12px;" @click.stop
+            <span v-if="tab.closable !== false" class="material-symbols-outlined" id="close" style="font-size: 12px;" @click.stop
               @click="tabStore.removeTab(tab.id)">close</span>
           </div>
         </RippleButton>
@@ -23,8 +23,10 @@
 <script setup lang="ts">
 import RippleButton from '#components/common/RippleButton.vue';
 import { useTabStore } from '@/stores/tabs';
+import { computed } from 'vue';
 
 const tabStore = useTabStore();
+const displayedTabs = computed(() => tabStore.tabs.filter(tab => tab.show));
 
 const getIconPath = (icon: string | undefined): string => {
   if (!icon) return '';

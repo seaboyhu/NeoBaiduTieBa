@@ -114,6 +114,7 @@ export interface TabItem {
     desc: string;
     content: string;
     isClosing?: boolean;
+    closable?: boolean;
     origin?: TabItem;
     if?: boolean;
 }
