@@ -174,9 +174,48 @@ const onOpenImageViewer = (url: string): void => {
   imageViewerSrc.value = url;
 };
 
+const addHistoryFromTabMeta = (tab: TabItem, meta: TabInfo): void => {
+  const props = tab.props || {};
+  const component = tab.component;
+  const componentName = (tab.component as { __name?: string })?.__name;
+
+  if ((component === ViewThread || componentName === 'ViewThread') && props.tid !== undefined && !props.local && meta.title !== '贴子已被删除') {
+    historyStore.addHistory({
+      type: 'thread',
+      target: String(props.tid),
+      title: meta.title,
+      icon: meta.icon || '/assets/apps.svg',
+    });
+    return;
+  }
+
+  if ((component === ViewBarThreads || componentName === 'ViewBarThreads') && props.barName !== undefined) {
+    historyStore.addHistory({
+      type: 'bar',
+      target: String(props.barName),
+      title: meta.title,
+      icon: meta.icon || '/assets/apps.svg',
+    });
+    return;
+  }
+
+  if ((component === User || componentName === 'User') && props.uid !== undefined) {
+    historyStore.addHistory({
+      type: 'user',
+      target: String(props.uid),
+      title: meta.title,
+      icon: meta.icon || '/assets/user.svg',
+    });
+  }
+};
+
 const setTabInfo = (info: TabInfo): void => {
   const keyStr = String(info.key);
   tabStore.updateTabMeta(keyStr, { title: info.title, icon: info.icon });
+  const tab = tabStore.tabs.find((t: TabItem) => t.key === keyStr);
+  if (tab) {
+    addHistoryFromTabMeta(tab, info);
+  }
 
   // 如果是当前活动tab，直接更新activeTab显示
   if (String(activeTab.value.key) === keyStr) {
@@ -202,13 +241,6 @@ provide('updateTabMeta', setTabInfo);
 const onBarThreadClick = (id: string | number | undefined): void => {
   if (id === undefined) throw new Error("贴子ID为空！");
 
-  historyStore.addHistory({
-    type: 'thread',
-    target: String(id),
-    title: `帖子 ${id}`,
-    icon: '/assets/apps.svg',
-  });
-
   const key = generateUniqueId('ViewThread' + id);
   tabStore.addTab({
     key: String(key),
@@ -224,13 +256,6 @@ const onBarThreadClick = (id: string | number | undefined): void => {
 const onBarNameClicked = (barName: string | undefined): void => {
   if (barName === undefined) throw new Error("吧名为空！");
 
-  historyStore.addHistory({
-    type: 'bar',
-    target: barName,
-    title: `${barName}吧`,
-    icon: '/assets/apps.svg',
-  });
-
   const key = generateUniqueId('ViewBarThreads' + barName);
   tabStore.addTab({
     key: String(key),
@@ -244,13 +269,6 @@ const onBarNameClicked = (barName: string | undefined): void => {
 
 const userNameClicked = (uid: string | number | undefined): void => {
   if (uid === undefined) throw new Error('用户ID为空！');
-
-  historyStore.addHistory({
-    type: 'user',
-    target: String(uid),
-    title: `用户 ${uid}`,
-    icon: '/assets/user.svg',
-  });
 
   const key = generateUniqueId('User' + uid);
   tabStore.addTab({
