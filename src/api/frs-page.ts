@@ -2,9 +2,15 @@ import { callProtoEndpoint, createCommon, type ProtoCallOptions } from '@/core/p
 
 const BAR_PAGE_CLIENT_VERSION = '12.64.1.1';
 const DEFAULT_RN = 50;
-const DEFAULT_SORT_TYPE = 3;
+const DEFAULT_SORT_TYPE = 6;
 
 type AnyRecord = Record<string, any>;
+
+export interface BrowseBarProtoOptions {
+    rn?: number;
+    sortType?: number;
+    isGood?: boolean;
+}
 
 function stringValue(value: unknown, fallback = ''): string {
     if (value === null || value === undefined) {
@@ -255,10 +261,12 @@ export async function browse_bar_protobuf(
     barName: string,
     page = 1,
     options: ProtoCallOptions = {},
-    rn = DEFAULT_RN,
-    sortType = DEFAULT_SORT_TYPE,
-    isGood = false
+    browseOptions: BrowseBarProtoOptions = {}
 ): Promise<any> {
+    const rn = browseOptions.rn ?? DEFAULT_RN;
+    const sortType = browseOptions.sortType ?? DEFAULT_SORT_TYPE;
+    const isGood = browseOptions.isGood ?? false;
+
     const requestData = {
         data: {
             common: createCommon(BAR_PAGE_CLIENT_VERSION, options),
@@ -278,6 +286,6 @@ export async function browse_bar_protobuf(
     if (errorNo) {
         throw new Error(`Tieba server error: ${errorNo} - ${stringValue(error.errmsg)}`);
     }
-    console.log(normalizeFrsPageResponse(response, barName));
+
     return normalizeFrsPageResponse(response, barName);
 }

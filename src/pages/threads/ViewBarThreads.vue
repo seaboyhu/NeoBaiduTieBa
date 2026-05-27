@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, inject, type Ref } from 'vue';
+import { computed, ref, onMounted, inject, type Ref } from 'vue';
 import { useApiStore } from '@/stores';
 import PinnedThread from '@/components/thread/PinnedThread.vue';
 import Thread from '@/components/thread/Thread.vue';
@@ -76,6 +76,8 @@ const updateTabMeta = inject<(info: { key: string | number; title: string; icon:
 const sendToast = inject<(title: string, duration: number) => void>('sendToast');
 
 // State
+const BAR_SORT_REPLY = 6;
+const BAR_SORT_CREATE = 1;
 const barDetailVisible: Ref<boolean> = ref<boolean>(false);
 const captureRef = ref<HTMLElement | null>(null);
 
@@ -116,6 +118,10 @@ const isThreadsLoading: Ref<boolean> = ref<boolean>(true);
 const pinnedThreadList: Ref<ThreadItem[]> = ref<ThreadItem[]>([]);
 const threadList: Ref<ThreadItem[]> = ref<ThreadItem[]>([]);
 const currentPage: Ref<number> = ref<number>(1);
+const isGoodOnly = ref<boolean>(false);
+const threadSortType = ref<number>(BAR_SORT_REPLY);
+const threadScopeLabel = computed(() => isGoodOnly.value ? '精华帖子' : '全部帖子');
+const threadSortLabel = computed(() => threadSortType.value === BAR_SORT_CREATE ? '发布时间排序' : '回复时间排序');
 
 // API实例
 const apiStore = useApiStore();
@@ -154,6 +160,45 @@ const nextPage = async (): Promise<void> => {
   await loadData();
 };
 
+const resetThreadList = (): void => {
+  currentPage.value = 1;
+  pinnedThreadList.value = [];
+  threadList.value = [];
+  returnData.value = {
+    ...returnData.value,
+    thread_list: [],
+    user_list: [],
+    page: { has_more: 1 }
+  };
+};
+
+const reloadThreads = async (): Promise<void> => {
+  if (isThreadsLoading.value) {
+    return;
+  }
+
+  resetThreadList();
+  await loadData();
+};
+
+const toggleThreadScope = async (): Promise<void> => {
+  if (isThreadsLoading.value) {
+    return;
+  }
+
+  isGoodOnly.value = !isGoodOnly.value;
+  await reloadThreads();
+};
+
+const toggleThreadSort = async (): Promise<void> => {
+  if (isThreadsLoading.value) {
+    return;
+  }
+
+  threadSortType.value = threadSortType.value === BAR_SORT_CREATE ? BAR_SORT_REPLY : BAR_SORT_CREATE;
+  await reloadThreads();
+};
+
 // 滚动处理
 const onScroll = (target: { scrollTop: number; clientHeight: number; scrollHeight: number }): void => {
   if ((target.scrollTop + target.clientHeight + 20 >= target.scrollHeight)) {
@@ -170,7 +215,10 @@ const loadData = async (): Promise<void> => {
     isThreadsLoading.value = true;
 
     // 获取吧数据
-    let data = await api.browseBar(props.barName, currentPage.value);
+    let data = await api.browseBar(props.barName, currentPage.value, {
+      isGood: isGoodOnly.value,
+      sortType: threadSortType.value
+    });
 
     // 通过插件管理器处理数据
     const win = window as unknown as { pluginManager?: { dispatchEvent: (event: string, data: ForumData) => Promise<ForumData> } };
@@ -276,18 +324,20 @@ onMounted(async (): Promise<void> => {
 
         <div class="pinned-thread-list">
           <div class="thread-filter">
-            <RippleButton class="filter-button"
-              style="background-color: transparent; box-shadow: none; padding: 5px 10px; justify-self: right;">
+            <RippleButton class="filter-button" :class="{ active: isGoodOnly }"
+              style="background-color: transparent; box-shadow: none; padding: 5px 10px; justify-self: right;"
+              @click="toggleThreadScope">
               <div style="display: flex; gap: 10px; align-items: center;">
                 <img src="/assets/chevrondown.svg" class="icon_">
-                <span>全部贴子</span>
+                <span>{{ threadScopeLabel }}</span>
               </div>
             </RippleButton>
-            <RippleButton class="filter-button"
-              style="background-color: transparent; box-shadow: none; padding: 5px 10px; justify-self: left;">
+            <RippleButton class="filter-button" :class="{ active: threadSortType === BAR_SORT_CREATE }"
+              style="background-color: transparent; box-shadow: none; padding: 5px 10px; justify-self: left;"
+              @click="toggleThreadSort">
               <div style="display: flex; gap: 10px; align-items: center;">
                 <img src="/assets/schedule.svg" width="18px" class="icon_">
-                <span>回复时间排序</span>
+                <span>{{ threadSortLabel }}</span>
               </div>
             </RippleButton>
 
@@ -346,6 +396,14 @@ onMounted(async (): Promise<void> => {
 .thread-filter {
   width: 80%;
   display: flex;
+}
+
+.filter-button {
+  transition: background-color 0.2s ease;
+}
+
+.filter-button.active {
+  background-color: rgba(var(--primary-color), 0.12) !important;
 }
 
 .thread-list {

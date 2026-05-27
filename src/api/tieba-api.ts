@@ -9,7 +9,7 @@ import {
 import { user_info_protobuf } from "@/api/user-info";
 import { user_post_protobuf } from "@/api/user-post";
 import { get_post_proto } from "@/api/get-post";
-import { browse_bar_protobuf } from "@/api/frs-page";
+import { browse_bar_protobuf, type BrowseBarProtoOptions } from "@/api/frs-page";
 import { useSettingsStore } from '@/stores/settings';
 import { normalizeThreadPage, normalizeUserPostPage, normalizeUserProfile } from '@/api/adapters';
 import type { ThreadPage, UserPostPage, UserProfile } from '@/types/client';
@@ -148,17 +148,28 @@ export class tieBaAPI {
         return JSON.parse(responseData);
     }
 
-    async browseBar(barName: string, page = 1): Promise<any> {
+    async browseBar(barName: string, page = 1, browseOptions: BrowseBarProtoOptions = {}): Promise<any> {
         try {
-            return await browse_bar_protobuf(barName, page, this.getRequestOptions());
+            return await browse_bar_protobuf(barName, page, this.getRequestOptions(), browseOptions);
         } catch (error) {
             console.warn('FrsPage protobuf request failed, falling back to JSON:', error);
-            return await this.browseBarJson(barName, page);
+            return await this.browseBarJson(barName, page, browseOptions);
         }
     }
 
-    private async browseBarJson(barName: string, page = 1): Promise<any> {
-        const data = `_client_type=2&_client_version=8.6.8.0&kw=${encodeURIComponent(barName)}&pn=${page}&q_type=2&rn=50&with_group=1`;
+    private async browseBarJson(barName: string, page = 1, browseOptions: BrowseBarProtoOptions = {}): Promise<any> {
+        const params = [
+            '_client_type=2',
+            '_client_version=8.6.8.0',
+            `kw=${encodeURIComponent(barName)}`,
+            `pn=${page}`,
+            'q_type=2',
+            `rn=${browseOptions.rn ?? 50}`,
+            'with_group=1',
+            `sort_type=${browseOptions.sortType ?? 6}`,
+            `is_good=${browseOptions.isGood ? 1 : 0}`,
+        ];
+        const data = params.join('&');
         const responseData = await fetchData('http://c.tieba.baidu.com/c/f/frs/page?' + this.calcSign(data), this.getRequestOptions());
         return JSON.parse(responseData);
     }
