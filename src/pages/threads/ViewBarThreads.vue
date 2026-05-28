@@ -14,9 +14,9 @@ interface Props {
 
 interface Emits {
   (e: 'setTabInfo', info: { key: string | number; title: string; icon: string }): void;
-  (e: 'SearchInBar', data: { barName: string; barIcon: string }): void;
-  (e: 'UserNameClicked', uid: string | number): void;
-  (e: 'threadClick', id: string | number): void;
+  (e: 'openSearchInBar', data: { barName: string; barIcon: string }): void;
+  (e: 'openUser', uid: string | number): void;
+  (e: 'openThread', id: string | number): void;
 }
 
 interface MediaItem {
@@ -168,8 +168,8 @@ const loadCurrentUser = async (): Promise<void> => {
 };
 
 // 搜索吧内
-const SearchInBar = (): void => {
-  emit('SearchInBar', {
+const openSearchInBar = (): void => {
+  emit('openSearchInBar', {
     barName: props.barName,
     barIcon: returnData.value.forum.avatar
   });
@@ -186,12 +186,12 @@ const hidebarDetail = (): void => {
 
 // 用户名点击
 const onUserNameClicked = (uid: string | number): void => {
-  emit('UserNameClicked', uid);
+  emit('openUser', uid);
 };
 
 // 线程点击
 const handleClick = (id: string | number): void => {
-  emit('threadClick', id);
+  emit('openThread', id);
 };
 
 // 下一页
@@ -420,7 +420,7 @@ onMounted(async (): Promise<void> => {
 
             <RippleButton class="filter-button"
               style="background-color: transparent; box-shadow: none; padding: 5px 10px; justify-self: right;"
-              @click="SearchInBar()">
+                    @click="openSearchInBar()">
               <div style="display: flex; gap: 10px; align-items: center;">
                 <img src="/assets/search.svg" width="18px" class="icon_">
                 <span>吧内搜索</span>
@@ -442,7 +442,7 @@ onMounted(async (): Promise<void> => {
         </div>
 
         <div class="thread-list">
-          <Thread @UserNameClicked="onUserNameClicked(item.author?.id || 0)" @threadClicked="handleClick(item.id)"
+          <Thread @openUser="onUserNameClicked(item.author?.id || 0)" @openThread="handleClick(item.id)"
             v-for="item in threadList" :key="item.id" :thread_title="item.title" :media="(item.media || []) as any"
             :user_name="item.author?.name_show || item.author?.name || '匿名用户'" :avatar="item.author?.portrait || ''"
             :thread_content="(item.rich_abstract?.length === 0 || !Array.isArray(item.rich_abstract) ? [{ type: 0, text: item.title }] : item.rich_abstract) as any"

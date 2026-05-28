@@ -4,14 +4,13 @@ import { getCurrentUserBduss } from '@/services/user-manage';
 import { useApiStore } from '@/stores';
 import ThreadLite from '@/components/thread/ThreadLite.vue';
 
-// 类型定义
 interface Props {
   key_: string | number;
 }
 
 interface Emits {
   (e: 'setTabInfo', info: { key: string | number; title: string; icon: string }): void;
-  (e: 'threadClick', id: string | number): void;
+  (e: 'openThread', id: string | number): void;
 }
 
 interface ThreadAuthor {
@@ -31,25 +30,19 @@ interface ThreadItem {
   post_no_msg: string;
 }
 
-// Props & Emits
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
-
-// Inject
 const updateTabMeta = inject<(info: { key: string | number; title: string; icon: string }) => void>('updateTabMeta');
 
-// State
 const isLoading = ref<boolean>(true);
 const isThreadsLoading = ref<boolean>(true);
 const threadList: Ref<ThreadItem[]> = ref([]);
 const offset = ref<number>(0);
 
-// API实例
 const apiStore = useApiStore();
 const api = apiStore.getApi();
 let bduss = '';
 
-// 加载数据
 const loadData = async (): Promise<void> => {
   try {
     isThreadsLoading.value = true;
@@ -63,15 +56,13 @@ const loadData = async (): Promise<void> => {
   }
 };
 
-// 生命周期
 onMounted(async (): Promise<void> => {
   const bdussValue = await getCurrentUserBduss();
   bduss = `BDUSS=${bdussValue}`;
   await loadData();
-  updateTabMeta?.({ key: props.key_, title: "我的收藏", icon: "/assets/favourite.svg" });
+  updateTabMeta?.({ key: props.key_, title: '我的收藏', icon: '/assets/favourite.svg' });
 });
 
-// 滚动处理
 const onScroll = (target: HTMLElement): void => {
   const { scrollTop, clientHeight, scrollHeight } = target;
   if (scrollTop + clientHeight + 20 >= scrollHeight) {
@@ -82,9 +73,8 @@ const onScroll = (target: HTMLElement): void => {
   }
 };
 
-// 线程点击处理
 const handleClick = (id: string | number): void => {
-  emit('threadClick', id);
+  emit('openThread', id);
 };
 </script>
 
@@ -98,10 +88,9 @@ const handleClick = (id: string | number): void => {
             :media="item.media" :user_name="item.author.name_show || item.author.name"
             :avatar="item.author.user_portrait" :create_time="item.last_time"
             :style="{ opacity: item.is_deleted ? 0.5 : 1 }"
-            :msg="item.is_deleted ? '贴子以被删除' : item.forum_name + '吧 | ' + (item.post_no_msg == '' ? '无更新' : item.post_no_msg)">
+            :msg="item.is_deleted ? '贴子已被删除' : `${item.forum_name} 吧 | ${item.post_no_msg === '' ? '无更新' : item.post_no_msg}`">
           </ThreadLite>
         </div>
-
       </div>
     </transition>
     <transition name="fade1">

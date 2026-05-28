@@ -1,6 +1,6 @@
 <template>
-  <div class="thread" @click="emit('threadClicked')">
-    <div class="user-info" @click.stop @click="userNameClicked">
+  <div class="thread" @click="emit('openThread')">
+    <div class="user-info" @click.stop @click="openUser">
       <div class="avatar"><img class="avatar"
           :src="'https://gss0.bdstatic.com/6LZ1dD3d1sgCo2Kml5_Y_D3/sys/portrait/item/' + avatar"></div>
       <div>
@@ -71,9 +71,12 @@ const props = withDefaults(defineProps<{
 
 const content = ref<string>('')
 const create_time1 = ref<string>('')
-const emit = defineEmits(['UserNameClicked', "threadClicked"])
-const userNameClicked = () => {
-  emit('UserNameClicked');
+const emit = defineEmits<{
+  (e: 'openUser'): void;
+  (e: 'openThread'): void;
+}>()
+const openUser = () => {
+  emit('openUser');
 }
 function formatDate(timestamp: number) {
   const date = new Date(timestamp * 1000);

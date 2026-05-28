@@ -11,14 +11,14 @@ interface Props {
 const isLoading = ref(false);
 const searchResult = ref();
 const searchType = ref(0);
-const searchContent = ref("");
+const searchContent = ref('');
 const props = defineProps<Props>();
-const emit = defineEmits(['threadClick', 'setTabInfo', 'UserNameClicked', 'BarNameClicked', 'setTabInfo']);
+const emit = defineEmits(['openThread', 'setTabInfo', 'openUser', 'openBar']);
 const sendToast = inject<(title: string, duration: number) => void>('sendToast');
 const updateTabMeta = inject<(info: { key: unknown; title: string; icon: string }) => void>('updateTabMeta');
 
 onMounted(() => {
-  updateTabMeta?.({ key: props.key_, title: "搜索", icon: "/assets/search.svg" });
+  updateTabMeta?.({ key: props.key_, title: '搜索', icon: '/assets/search.svg' });
 });
 
 async function handleEnter(pageSwitch = false) {
@@ -27,46 +27,39 @@ async function handleEnter(pageSwitch = false) {
       sendToast?.('请输入搜索内容', 3000);
       return;
     }
-    else {
-      searchResult.value = undefined;
-      return;
-    }
+    searchResult.value = undefined;
+    return;
   }
+
   isLoading.value = true;
   const apiStore = useApiStore();
   const api = apiStore.getApi();
 
   switch (searchType.value) {
     case 0:
-      const barResult = await api.searchBar(searchContent.value);
-      searchResult.value = barResult.data;
+      searchResult.value = (await api.searchBar(searchContent.value)).data;
       break;
     case 1:
-      const threadResult = await api.searchThread(searchContent.value, '1', '0', '0', '0', '1', '0', '0', '0');
-      searchResult.value = threadResult.data.post_list;
+      searchResult.value = (await api.searchThread(searchContent.value, '1', '0', '0', '0', '1', '0', '0', '0')).data.post_list;
       break;
     case 2:
-      const userResult = await api.searchUser(searchContent.value);
-      searchResult.value = userResult.data;
+      searchResult.value = (await api.searchUser(searchContent.value)).data;
       break;
   }
+
   if ((searchType.value === 0 || searchType.value === 2) &&
     (!searchResult.value?.fuzzyMatch?.length && !searchResult.value?.exactMatch?.id && !searchResult.value?.exactMatch?.avatar)) {
     sendToast?.('没有搜索到相关结果', 3000);
   } else if (searchType.value === 1 && (!Array.isArray(searchResult.value) || !searchResult.value.length)) {
     sendToast?.('没有搜索到相关结果', 3000);
   }
+
   isLoading.value = false;
 }
-const handleClick = (id: string | number) => {
-  emit('threadClick', id);
-}
-const onUserNameClicked = (uid: string | number) => {
-  emit('UserNameClicked', uid);
-}
+
 const onScroll = () => {
   // Handle scroll if needed
-}
+};
 </script>
 
 <template>
@@ -78,80 +71,75 @@ const onScroll = () => {
           @click="searchResult = undefined; searchType = 0; handleEnter(true)">搜吧
         </RippleButton>
         <RippleButton class="button-nostyle" :class="{ 'selected': searchType == 1 }"
-          @click="searchResult = undefined; searchType = 1; handleEnter(true)">搜贴
+          @click="searchResult = undefined; searchType = 1; handleEnter(true)">搜帖
         </RippleButton>
         <RippleButton class="button-nostyle" :class="{ 'selected': searchType == 2 }"
           @click="searchResult = undefined; searchType = 2; handleEnter(true)">搜人
         </RippleButton>
       </div>
-      <input placeholder="键入关键词后按下回车键进行搜索……" @keyup.enter="handleEnter(false)" v-model="searchContent"></input>
+      <input placeholder="输入关键词后按下回车键进行搜索…" @keyup.enter="handleEnter(false)" v-model="searchContent">
       <TransitionGroup name="fade1">
         <div class="result" v-if="searchType == 0 && searchResult">
-
           <div v-if="searchResult?.exactMatch?.avatar != undefined">
             <Tag>最佳匹配</Tag>
             <div
               style="margin-top: 10px; display: grid; gap: 10px 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start;">
-              <button class="bar-button" @click="emit('BarNameClicked', searchResult.exactMatch.forum_name)">
+              <button class="bar-button" @click="emit('openBar', searchResult.exactMatch.forum_name)">
                 <img class="avatar" :src="searchResult.exactMatch.avatar" referrerpolicy="no-referrer">
                 <div style="margin-left: 5px;">
                   <div class="bar-name">{{ searchResult.exactMatch.forum_name }} </div>
-                  <div class="desc"><span>贴子数 {{ searchResult.exactMatch.post_num }}</span></div>
+                  <div class="desc"><span>帖子数 {{ searchResult.exactMatch.post_num }}</span></div>
                 </div>
               </button>
             </div>
           </div>
 
-          <div v-if="searchResult?.fuzzyMatch[0]?.avatar != undefined">
+          <div v-if="searchResult?.fuzzyMatch?.[0]?.avatar != undefined">
             <Tag>相关匹配</Tag>
             <div
               style="margin-top: 10px; display: grid; gap: 10px 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start;">
               <button class="bar-button" v-for="item in searchResult?.fuzzyMatch"
-                @click="emit('BarNameClicked', item.forum_name)">
+                @click="emit('openBar', item.forum_name)">
                 <img class="avatar" :src="item.avatar" referrerpolicy="no-referrer">
                 <div style="margin-left: 5px;">
                   <div class="bar-name">{{ item.forum_name }} </div>
-                  <div class="desc"><span>贴子数 {{ item.post_num }}</span></div>
+                  <div class="desc"><span>帖子数 {{ item.post_num }}</span></div>
                 </div>
               </button>
             </div>
           </div>
-
         </div>
 
-
         <div class="result" v-if="searchType == 1 && searchResult">
-          <Thread @UserNameClicked="onUserNameClicked(item.user.uid)" @threadClicked="handleClick(item.tid)"
+          <Thread @openUser="emit('openUser', item.user.uid)" @openThread="emit('openThread', item.tid)"
             v-for="item in searchResult" :thread_title="item.title"
             :user_name="item.user.user_name || item.user.show_nickname || '(未知)'"
             :avatar="item.user.portrait.match(/tb\.1\.[^/]+/) ? item.user.portrait.match(/tb\.1\.[^/]+/)[0] : '0'"
-            :thread_content="Array({ type: 0, text: item.content })" :create_time="item.time" :reply_num="item.post_num"
+            :thread_content="[{ type: 0, text: item.content }]" :create_time="item.time" :reply_num="item.post_num"
             :media="[]">
           </Thread>
         </div>
-
 
         <div class="result" v-if="searchType == 2 && searchResult">
           <div v-if="searchResult?.exactMatch?.id != undefined">
             <Tag>最佳匹配</Tag>
             <div
               style="margin-top: 10px; display: grid; gap: 10px 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start;">
-              <button class="bar-button" @click="emit('UserNameClicked', searchResult.exactMatch.id)">
+              <button class="bar-button" @click="emit('openUser', searchResult.exactMatch.id)">
                 <img class="avatar" :src="searchResult.exactMatch.portrait" referrerpolicy="no-referrer">
                 <div style="margin-left: 5px;">
-                  <div class="bar-name">{{ searchResult.exactMatch.name }} ({{ searchResult.exactMatch.show_nickname }})
-                  </div>
+                  <div class="bar-name">{{ searchResult.exactMatch.name }} ({{ searchResult.exactMatch.show_nickname }})</div>
                   <div class="desc"><span v-html="sanitize(searchResult.exactMatch.intro)"></span></div>
                 </div>
               </button>
             </div>
           </div>
-          <div v-if="searchResult?.fuzzyMatch[0]?.id != undefined">
+          <div v-if="searchResult?.fuzzyMatch?.[0]?.id != undefined">
             <Tag>相关匹配</Tag>
             <div
               style="margin-top: 10px; display: grid; gap: 10px 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start;">
               <button class="bar-button" v-for="item in searchResult.fuzzyMatch"
-                @click="emit('UserNameClicked', item.id)">
+                @click="emit('openUser', item.id)">
                 <img class="avatar" :src="item.portrait" referrerpolicy="no-referrer">
                 <div style="margin-left: 5px;">
                   <div class="bar-name">{{ item.name }} ({{ item.show_nickname }})</div>
@@ -160,7 +148,6 @@ const onScroll = () => {
               </button>
             </div>
           </div>
-
         </div>
       </TransitionGroup>
     </div>

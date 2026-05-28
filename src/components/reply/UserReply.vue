@@ -32,9 +32,9 @@ function formatDate(timestamp: number): string {
   const ss = String(date.getSeconds()).padStart(2, "0");
   return `${yyyy}/${mm}/${dd} ${hh}:${minute}:${ss}`;
 }
-const emit = defineEmits<{ ThreadClicked: [threadId: string | number] }>();
+const emit = defineEmits<{ openThread: [threadId: string | number] }>();
 function onThreadClicked() {
-  emit('ThreadClicked', props.threadId);
+  emit('openThread', props.threadId);
 }
 const props = defineProps({
   msg: {

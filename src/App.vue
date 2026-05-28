@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref, provide, nextTick, type Ref, type Component } from 'vue';
+import { onMounted, ref, provide, nextTick, type Ref, type Component, watch } from 'vue';
 import type { NotificationComponent } from '@/components';
 import type { TabItem } from '@/types/common';
+import type { OpenSearchInBarPayload } from '@/types/navigation';
 import FollowBar from './pages/user/FollowBar.vue';
 import ViewBarThreads from './pages/threads/ViewBarThreads.vue';
 import ViewThread from './pages/threads/ViewThread.vue';
 import My from './pages/user/My.vue';
-import Favourite from './pages/user/Favourite.vue';
-import History from './pages/user/History.vue';
 import User from './pages/user/User.vue';
 import Search from './pages/search/Search.vue';
 import Welcome from './pages/Welcome.vue';
@@ -16,14 +15,12 @@ import { errorService } from '@/core/error-service';
 import Tip from '@/components/notification/Tip.vue';
 import Debug from './pages/Debug.vue';
 import Home from './pages/Home.vue';
-import { read_file } from '@/core/file-io';
-import SearchInBar from './pages/search/SearchInBar.vue';
 import { clipboardService } from '@/services/clipboard-service';
 import { URLParser } from '@/services/url-parser';
 import { useApiStore, useHistoryStore } from '@/stores';
 import { useTabStore } from '@/stores/tabs';
+import { useTabNavigation } from '@/composables/useTabNavigation';
 
-// Type definitions
 interface NavItem {
   id: number;
   icon: string;
@@ -51,12 +48,6 @@ interface JumpResult {
   description: string;
 }
 
-interface SearchInBarData {
-  barName: string;
-  barIcon: string;
-}
-
-// Refs with explicit types
 const notificationComponent: Ref<NotificationComponent | null> = ref<NotificationComponent | null>(null);
 const isNotificationReady: Ref<boolean> = ref<boolean>(false);
 const imageViewerVisibility: Ref<boolean> = ref<boolean>(false);
@@ -68,7 +59,6 @@ const showNotificationBox: Ref<boolean> = ref<boolean>(false);
 const titleBarRef: Ref<TitleBarComponent | null> = ref<TitleBarComponent | null>(null);
 const processedUrls: Ref<string[]> = ref<string[]>([]);
 
-// Navigation items
 const naviListItem: Ref<NavItem[]> = ref<NavItem[]>([]);
 if (!import.meta.env.PROD) {
   naviListItem.value = [
@@ -93,9 +83,16 @@ const apiStore = useApiStore();
 const Api = apiStore.getApi();
 const tabStore = useTabStore();
 const historyStore = useHistoryStore();
+const {
+  openThread,
+  openBar,
+  openUser,
+  openSearchInBar,
+  openFavourite,
+  openHistory,
+  openLocalThread
+} = useTabNavigation();
 
-// Watch for tab changes and update activeTab
-import { watch } from 'vue';
 watch(
   () => tabStore.activeKey,
   (newActiveKey) => {
@@ -119,7 +116,6 @@ watch(
   { immediate: false }
 );
 
-// Notification system
 const safeAddNotification = async (
   title: string,
   source: string,
@@ -149,14 +145,14 @@ provide('sendToast', (title: string, duration = 3000): void => {
 });
 
 provide('openImageViewer', (url: string): void => {
-  onOpenImageViewer(url);
+  imageViewerVisibility.value = true;
+  imageViewerSrc.value = url;
 });
 
 provide('deleteTab', (key: string | number): void => {
   tabStore.removeTab(key);
 });
 
-// Utility functions
 function generateUniqueId(text: string): number {
   let hash = 0;
   if (text.length === 0) return hash;
@@ -168,11 +164,6 @@ function generateUniqueId(text: string): number {
   }
   return Math.abs(hash);
 }
-
-const onOpenImageViewer = (url: string): void => {
-  imageViewerVisibility.value = true;
-  imageViewerSrc.value = url;
-};
 
 const addHistoryFromTabMeta = (tab: TabItem, meta: TabInfo): void => {
   const props = tab.props || {};
@@ -217,7 +208,6 @@ const setTabInfo = (info: TabInfo): void => {
     addHistoryFromTabMeta(tab, info);
   }
 
-  // 如果是当前活动tab，直接更新activeTab显示
   if (String(activeTab.value.key) === keyStr) {
     const updatedTab = tabStore.tabs.find((t: TabItem) => t.key === keyStr);
     if (updatedTab) {
@@ -236,130 +226,8 @@ const setTabInfo = (info: TabInfo): void => {
   }
 };
 
-// 提供updateTabMeta给子组件，避免长链props回调
 provide('updateTabMeta', setTabInfo);
-const onBarThreadClick = (id: string | number | undefined): void => {
-  if (id === undefined) throw new Error("贴子ID为空！");
 
-  const key = generateUniqueId('ViewThread' + id);
-  tabStore.addTab({
-    key: String(key),
-    icon: "/assets/loading.svg",
-    title: "正在加载",
-    component: ViewThread,
-    props: { tid: id, key_: key, onUserNameClicked: userNameClicked, onBarNameClicked: onBarNameClicked },
-
-    origin: ({ icon: "/assets/loading.svg", title: "正在加载" } as unknown) as import('@/types/common').TabItem
-  });
-};
-
-const onBarNameClicked = (barName: string | undefined): void => {
-  if (barName === undefined) throw new Error("吧名为空！");
-
-  const key = generateUniqueId('ViewBarThreads' + barName);
-  tabStore.addTab({
-    key: String(key),
-    icon: "/assets/loading.svg",
-    title: "正在加载",
-    component: ViewBarThreads,
-    props: { key_: key, barName: barName, onThreadClick: onBarThreadClick, onUserNameClicked: userNameClicked, onSearchInBar: onSearchInBar },
-    origin: ({ icon: "/assets/loading.svg", title: "正在加载" } as unknown) as import('@/types/common').TabItem
-  });
-};
-
-const userNameClicked = (uid: string | number | undefined): void => {
-  if (uid === undefined) throw new Error('用户ID为空！');
-
-  const key = generateUniqueId('User' + uid);
-  tabStore.addTab({
-    key: String(key),
-    icon: "/assets/loading.svg",
-    title: "正在加载",
-    component: User,
-    props: { key_: key, uid: uid, onThreadClicked: onBarThreadClick },
-    origin: ({ icon: "/assets/loading.svg", title: "正在加载" } as unknown) as import('@/types/common').TabItem
-  });
-};
-
-const onSearchInBar = (data: SearchInBarData): void => {
-  const key = generateUniqueId('Search' + data.barName);
-  tabStore.addTab({
-    key: String(key),
-    icon: "/assets/search.svg",
-    title: "吧内搜索",
-    component: SearchInBar,
-    props: {
-      key_: key,
-      barName: data.barName,
-      barIcon: data.barIcon,
-      onBarNameClicked: onBarNameClicked,
-      onUserNameClicked: userNameClicked,
-      onThreadClick: onBarThreadClick
-    },
-
-    origin: ({ icon: "/assets/search.svg", title: "吧内搜索" } as unknown) as import('@/types/common').TabItem
-  });
-};
-
-const onFavouriteClicked = (): void => {
-  const key = generateUniqueId('Favourite');
-  tabStore.addTab({
-    key: String(key),
-    icon: "/assets/favourite.svg",
-    title: "我的收藏",
-    component: Favourite,
-    props: { key_: key, onThreadClick: onBarThreadClick },
-
-    origin: ({ icon: "/assets/favourite.svg", title: "我的收藏" } as unknown) as import('@/types/common').TabItem
-  });
-};
-
-const onHistoryClicked = (): void => {
-  const key = generateUniqueId('History');
-  tabStore.addTab({
-    key: String(key),
-    icon: "/assets/schedule.svg",
-    title: "浏览历史",
-    component: History,
-    props: {
-      key_: key,
-      onThreadClick: onBarThreadClick,
-      onBarNameClicked: onBarNameClicked,
-      onUserNameClicked: userNameClicked,
-    },
-    origin: ({ icon: "/assets/schedule.svg", title: "浏览历史" } as unknown) as import('@/types/common').TabItem
-  });
-};
-
-const openLocalThread = async (file: string): Promise<void> => {
-  let tid = 0;
-  try {
-    const ret = JSON.parse(await read_file(file + '/page1.json'));
-    tid = ret.thread.id;
-    console.log(tid);
-  } catch {
-    throw new Error("目录无效");
-  }
-
-  const key = generateUniqueId('ViewThread' + tid);
-  tabStore.addTab({
-    key: String(key),
-    icon: "/assets/loading.svg",
-    title: "正在加载",
-    component: ViewThread,
-    props: {
-      tid: tid,
-      local: true,
-      local_dir: file,
-      key_: key,
-      onUserNameClicked: userNameClicked,
-      onBarNameClicked: onBarNameClicked
-    },
-    origin: ({ icon: "/assets/loading.svg", title: file } as unknown) as import('@/types/common').TabItem
-  });
-};
-
-// Tab management
 function onSwitchTabs(id: number): void {
   const tabItem = tabStore.getTab(id);
   if (!tabItem) return;
@@ -450,10 +318,10 @@ const addBar = async (id: number): Promise<void> => {
       key = generateUniqueId('Search');
       tabStore.addTab({
         key: `${key}`,
-        icon: "/assets/search.svg",
-        title: "搜索",
+        icon: '/assets/search.svg',
+        title: '搜索',
         component: Search,
-        props: { key_: key, onBarNameClicked: onBarNameClicked, onUserNameClicked: userNameClicked, onThreadClick: onBarThreadClick }
+        props: { key_: key }
       });
       break;
     case 1:
@@ -463,47 +331,47 @@ const addBar = async (id: number): Promise<void> => {
         icon: '/assets/home.svg',
         title: '首页',
         component: Home,
-        props: { key_: key, onBarNameClicked: onBarNameClicked, onUserNameClicked: userNameClicked, onThreadClick: onBarThreadClick }
+        props: { key_: key }
       });
       break;
     case 2:
       key = generateUniqueId('FollowBar');
       tabStore.addTab({
         key: `${key}`,
-        icon: "/assets/apps.svg",
-        title: "进吧",
+        icon: '/assets/apps.svg',
+        title: '进吧',
         component: FollowBar,
-        props: { key_: key, onBarNameClicked: onBarNameClicked }
+        props: { key_: key }
       });
       break;
     case 3:
       key = generateUniqueId('My');
       tabStore.addTab({
         key: `${key}`,
-        icon: "/assets/user.svg",
-        title: "我的",
+        icon: '/assets/user.svg',
+        title: '我的',
         component: My,
-        props: { key_: key, onFavouriteClicked: onFavouriteClicked, onHistoryClicked: onHistoryClicked, onUserNameClicked: userNameClicked, onThreadClicked: onBarThreadClick }
+        props: { key_: key }
       });
       break;
     case 4:
       key = generateUniqueId('Setting');
       tabStore.addTab({
         key: `${key}`,
-        icon: "/assets/settings.svg",
-        title: "设置",
+        icon: '/assets/settings.svg',
+        title: '设置',
         component: Setting,
-        props: { key_: key, onUserChanged: handleUserChanged }
+        props: { key_: key }
       });
       break;
     case 5:
       key = generateUniqueId('Debug');
       tabStore.addTab({
         key: `${key}`,
-        icon: "/assets/bug.svg",
-        title: "调试",
+        icon: '/assets/bug.svg',
+        title: '调试',
         component: Debug,
-        props: { key_: key, onOpenLocalThread: openLocalThread }
+        props: { key_: key }
       });
       break;
     default:
@@ -527,7 +395,10 @@ const handleUserChanged = async (): Promise<void> => {
   }
 };
 
-// Lifecycle
+const handleOpenSearchInBar = (data: OpenSearchInBarPayload): void => {
+  openSearchInBar(data);
+};
+
 onMounted(async (): Promise<void> => {
   await nextTick();
   isNotificationReady.value = true;
@@ -561,9 +432,13 @@ onMounted(async (): Promise<void> => {
           case 'viewthread': {
             const thread = await Api.get_post(Number(params?.tid), 1);
             jump_result = {
-              onClick: (): void => onBarThreadClick(params?.tid),
+              onClick: (): void => {
+                if (params?.tid !== undefined) {
+                  openThread(params.tid);
+                }
+              },
               title: thread.data.thread.title,
-              description: '来自 ' + thread.data.forum.name + '吧'
+              description: `来自 ${thread.data.forum.name} 吧`
             };
             break;
           }
@@ -588,7 +463,16 @@ onMounted(async (): Promise<void> => {
   });
 
   const key = generateUniqueId('Welcome');
-  tabStore.addTab({ key: String(key), icon: "/assets/apps.svg", title: "欢迎", component: Welcome, props: { key_: key }, show: false, closable: false, origin: ({ icon: "/assets/apps.svg", title: "欢迎" } as unknown) as import('@/types/common').TabItem });
+  tabStore.addTab({
+    key: String(key),
+    icon: '/assets/apps.svg',
+    title: '欢迎',
+    component: Welcome,
+    props: { key_: key },
+    show: false,
+    closable: false,
+    origin: ({ icon: '/assets/apps.svg', title: '欢迎' } as unknown) as import('@/types/common').TabItem
+  });
 });
 </script>
 
@@ -605,7 +489,9 @@ onMounted(async (): Promise<void> => {
       <div v-for="tab in tabStore.tabs" v-show="tab.key === activeTab.key" :key="tab.key" class="tab-pane">
         <keep-alive>
           <component @deactivated="onDeactivated(tab.key)" :is="tab.component" :key="tab.renderKey || tab.key"
-            v-if="tab.if" v-bind="tab.props" />
+            v-if="tab.if" v-bind="tab.props" @openThread="openThread" @openUser="openUser" @openBar="openBar"
+            @openSearchInBar="handleOpenSearchInBar" @openFavourite="openFavourite" @openHistory="openHistory"
+            @openLocalThread="openLocalThread" @userChanged="handleUserChanged" />
         </keep-alive>
       </div>
     </div>
@@ -642,14 +528,12 @@ onMounted(async (): Promise<void> => {
   transform: translateX(100%);
 }
 
-
 .notification-box {
   position: absolute;
   right: 10px;
   top: 55px;
   width: 320px;
   background-color: rgba(var(--background-color), 0.2);
-  /* background-blend-mode: overlay; */
   padding: 0 10px;
   border-radius: 7px;
   backdrop-filter: blur(20px);
@@ -657,8 +541,6 @@ onMounted(async (): Promise<void> => {
   overflow-y: auto;
   border: 1.5px solid rgba(var(--text-color), 0.1);
 }
-
-
 
 .navi-button {
   opacity: 0.5;
@@ -701,7 +583,6 @@ onMounted(async (): Promise<void> => {
   top: 0px;
   width: 70px;
   position: fixed;
-  /* height: 100%; */
   display: flex;
   flex-direction: column;
   padding: 5px 0;
@@ -723,7 +604,6 @@ onMounted(async (): Promise<void> => {
   top: 0px;
   width: 100%;
   height: 48px;
-
 }
 </style>
 <style>
@@ -830,7 +710,6 @@ input {
   width: calc(100% - 10px);
   margin: 10px;
   margin-top: 0px;
-
 }
 
 .notification-source {
@@ -996,8 +875,6 @@ input {
 .fade1-leave-to {
   opacity: 0;
 }
-
-
 
 ::-webkit-scrollbar {
   width: 7px;

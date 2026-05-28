@@ -4,7 +4,6 @@ import { useApiStore } from '@/stores';
 import { ref, onMounted, inject } from 'vue';
 import Container from '@/components/common/Container.vue';
 
-// 类型定义
 interface ForumInfo {
   forum_name: string;
   avatar: string;
@@ -18,18 +17,14 @@ interface Props {
 }
 
 interface Emits {
-  (e: 'BarNameClicked', barName: string): void;
+  (e: 'openBar', barName: string): void;
   (e: 'setTabInfo', info: { key: string | number; title: string; icon: string }): void;
 }
 
-// Props & Emits
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
-
-// Inject
 const updateTabMeta = inject<(info: { key: string | number; title: string; icon: string }) => void>('updateTabMeta');
 
-// State
 const naviListItem = ref<ForumInfo[]>([]);
 const isLoading = ref(true);
 
@@ -40,21 +35,16 @@ onMounted(async () => {
   const result = (await api.followbar_list(cookie.bduss, cookie.stoken)).forum_info.sort(
     (a: ForumInfo, b: ForumInfo) => b.user_level - a.user_level
   );
-  console.log(result);
 
-  // 检查pluginManager是否存在
   if (window.pluginManager) {
     naviListItem.value = await window.pluginManager.dispatchEvent('followBarUpdated', result);
-    console.log(naviListItem.value);
-    console.log(await window.pluginManager.dispatchEvent('followBarUpdated', result));
   } else {
     naviListItem.value = result;
   }
 
   isLoading.value = false;
-  updateTabMeta?.({ key: props.key_, title: "进吧", icon: "/assets/apps.svg" });
-})
-
+  updateTabMeta?.({ key: props.key_, title: '进吧', icon: '/assets/apps.svg' });
+});
 </script>
 
 <template>
@@ -64,7 +54,7 @@ onMounted(async () => {
       <transition name="fade1">
         <div class="list-view" v-if="!isLoading">
           <button class="bar-button" v-if="naviListItem.length > 0" v-for="item in naviListItem"
-            @click="emit('BarNameClicked', item.forum_name)">
+            @click="emit('openBar', item.forum_name)">
             <img class="avatar" :src="item.avatar" referrerpolicy="no-referrer">
             <div style="margin-left: 5px;">
               <div class="bar-name">{{ item.forum_name }} </div>

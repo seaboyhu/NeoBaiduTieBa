@@ -4,7 +4,7 @@
       <div v-if="!isLoading" class="bgr">
         <div class="list-title">为你推荐</div>
         <div class="thread-list">
-          <Thread @UserNameClicked="onUserNameClicked(item.author.id)" @threadClicked="handleClick(item.id)"
+          <Thread @openUser="emit('openUser', item.author.id)" @openThread="emit('openThread', item.id)"
             v-for="item in threadList" :key="item.id" :thread_title="item.title"
             :media="(item.media || []) as MediaItem[]" :user_name="item.author.display_name || item.author.user_name"
             :avatar="item.author.portrait"
@@ -18,7 +18,6 @@
     <transition name="fade1">
       <Loading class="loading-box" v-if="isThreadsLoading"></Loading>
     </transition>
-
   </Container>
 </template>
 <script setup lang="ts">
@@ -27,15 +26,14 @@ import { getCurrentUser, type User } from '@/services/user-manage';
 import { useApiStore } from '@/stores';
 import type { MediaItem } from '@/types/common';
 
-// 类型定义
 interface Props {
   key_: string | number;
 }
 
 interface Emits {
-  (e: 'threadClick', id: string | number): void;
+  (e: 'openThread', id: string | number): void;
   (e: 'setTabInfo', info: { key: string | number; title: string; icon: string }): void;
-  (e: 'UserNameClicked', uid: string | number): void;
+  (e: 'openUser', uid: string | number): void;
 }
 
 interface ThreadAuthor {
@@ -64,25 +62,19 @@ interface RecommendData {
   [key: string]: any;
 }
 
-// Props & Emits
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
-
-// Inject
 const updateTabMeta = inject<(info: { key: string | number; title: string; icon: string }) => void>('updateTabMeta');
 
-// State
 const returnData: Ref<RecommendData> = ref({ thread_list: [] });
 const isLoading = ref<boolean>(true);
 const isThreadsLoading = ref<boolean>(true);
 const threadList: Ref<ThreadItem[]> = ref([]);
 const currentPage = ref<number>(1);
 
-// API实例
 const apiStore = useApiStore();
 const api = apiStore.getApi();
 
-// 加载数据
 const loadData = async (): Promise<void> => {
   try {
     isThreadsLoading.value = true;
@@ -91,9 +83,6 @@ const loadData = async (): Promise<void> => {
     const response = await api.getHomeRecommend(user.bduss, user.stoken);
     returnData.value = response.data;
 
-    console.log('Home Recommend Data:', returnData.value);
-
-    // 通过插件管理器处理数据
     if ((window as any).pluginManager) {
       returnData.value = await (window as any).pluginManager.dispatchEvent(
         'threadListUpdated',
@@ -101,7 +90,6 @@ const loadData = async (): Promise<void> => {
       );
     }
 
-    // 合并线程列表
     threadList.value = [...threadList.value, ...returnData.value.thread_list];
   } catch (error) {
     console.error('加载推荐内容失败:', error);
@@ -110,15 +98,13 @@ const loadData = async (): Promise<void> => {
   }
 };
 
-// 生命周期
 onMounted(async (): Promise<void> => {
-  updateTabMeta?.({ key: props.key_, title: "首页", icon: "/assets/home.svg" });
+  updateTabMeta?.({ key: props.key_, title: '首页', icon: '/assets/home.svg' });
   isLoading.value = true;
   await loadData();
   isLoading.value = false;
 });
 
-// 滚动处理
 const onScroll = (target: HTMLElement): void => {
   const { scrollTop, clientHeight, scrollHeight } = target;
   if (scrollTop + clientHeight + 20 >= scrollHeight) {
@@ -128,17 +114,6 @@ const onScroll = (target: HTMLElement): void => {
   }
 };
 
-// 线程点击处理
-const handleClick = (id: string | number): void => {
-  emit('threadClick', id);
-};
-
-// 用户名点击处理
-const onUserNameClicked = (uid: string | number): void => {
-  emit('UserNameClicked', uid);
-};
-
-// 加载下一页
 const nextPage = async (): Promise<void> => {
   currentPage.value++;
   await loadData();
@@ -156,7 +131,6 @@ const nextPage = async (): Promise<void> => {
   flex-direction: column;
   gap: 10px;
 }
-
 
 .thread {
   width: 100%;

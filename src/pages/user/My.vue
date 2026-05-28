@@ -15,10 +15,10 @@ const props = defineProps<Props>();
 
 // Emits 定义
 interface Emits {
-  (e: 'FavouriteClicked'): void;
-  (e: 'HistoryClicked'): void;
-  (e: 'userNameClicked', uid: string): void;
-  (e: 'ThreadClicked', id: string | number): void;
+  (e: 'openFavourite'): void;
+  (e: 'openHistory'): void;
+  (e: 'openUser', uid: string): void;
+  (e: 'openThread', id: string | number): void;
   (e: 'setTabInfo', info: { key: string | number; title: string; icon: string }): void;
 }
 
@@ -140,12 +140,12 @@ const nextPage = async (): Promise<void> => {
 
 // 线程点击处理
 const onThreadClicked = (id: string | number): void => {
-  emit('ThreadClicked', id);
+  emit('openThread', id);
 };
 
 // 历史记录
 const history = (): void => {
-  emit('HistoryClicked');
+  emit('openHistory');
 };
 </script>
 
@@ -179,7 +179,7 @@ const history = (): void => {
         </div>
         <div class="pinned-thread-list">
           <RippleButton class="my-btn">
-            <div class="button-content" @click="emit('FavouriteClicked')"><span
+            <div class="button-content" @click="emit('openFavourite')"><span
                 class="material-symbols-outlined">favorite</span>收藏</div>
           </RippleButton>
           <RippleButton class="my-btn">
@@ -187,7 +187,7 @@ const history = (): void => {
             </div>
           </RippleButton>
           <RippleButton class="my-btn">
-            <div class="button-content" @click="emit('userNameClicked', uid)"><span
+            <div class="button-content" @click="emit('openUser', uid)"><span
                 class="material-symbols-outlined">gesture</span>主页</div>
           </RippleButton>
           <RippleButton class="my-btn">
@@ -226,7 +226,7 @@ const history = (): void => {
           </div>
           <TransitionGroup name="fade1">
             <div class="reply-list" v-if="atReplyPage">
-              <UserReply @ThreadClicked="onThreadClicked(item.thread_id)" v-for="item in returnData2" msg=""
+              <UserReply @openThread="onThreadClicked(item.thread_id)" v-for="item in returnData2" msg=""
                 :user_name="item.replyer.name || item.replyer.name_show"
                 :thread_title="replaceEmoticonsWithImages(item.content)" :avatar="item.replyer.portrait"
                 :media="[{ postContent: [{ type: 0, text: replaceEmoticonsWithImages(item.quote_content) }], createTime: String(item.time) }]"
@@ -234,7 +234,7 @@ const history = (): void => {
               </UserReply>
             </div>
             <div class="at-list" v-if="!atReplyPage">
-              <UserReply @ThreadClicked="onThreadClicked(item.thread_id)" v-for="item in returnData3" msg=""
+              <UserReply @openThread="onThreadClicked(item.thread_id)" v-for="item in returnData3" msg=""
                 :user_name="item.replyer.name || item.replyer.name_show" :thread_title="item.content"
                 :avatar="item.replyer.portrait"
                 :media="[{ postContent: [{ type: 0, text: item.title }], createTime: item.time }]" :create_time="0"

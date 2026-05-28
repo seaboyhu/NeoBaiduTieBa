@@ -1,6 +1,6 @@
 <template>
   <div class="subpost-1">
-    <div class="user-info" @click="emit('userNameClicked', props.uid)">
+    <div class="user-info" @click="emit('openUser', props.uid)">
       <div class="avatar"><img class="avatar"
           :src="'https://gss0.bdstatic.com/6LZ1dD3d1sgCo2Kml5_Y_D3/sys/portrait/item/' + avatar"></div>
       <div class="user-name">{{ user_name }}</div>
@@ -17,10 +17,10 @@ import { onMounted, ref } from 'vue';
 import { processContentElements } from '@/utils/helper';
 import type { ContentElement } from '@/types/common';
 const content = ref('')
-const emit = defineEmits(['userNameClicked'])
+const emit = defineEmits(['openUser'])
 const handleClick = (event: any) => {
   if (event.target.classList.contains('at-button')) {
-    emit('userNameClicked', event.target.getAttribute('uid'));
+    emit('openUser', event.target.getAttribute('uid'));
   }
 }
 onMounted(() => {

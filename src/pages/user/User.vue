@@ -12,8 +12,8 @@ interface Props {
 
 interface Emits {
   (e: 'setTabInfo', info: { key: number; title: string; icon: string }): void;
-  (e: 'threadClicked', id: string | number): void;
-  (e: 'barNameClicked', barName: string): void;
+  (e: 'openThread', id: string | number): void;
+  (e: 'openBar', barName: string): void;
 }
 
 interface UserData {
@@ -90,7 +90,7 @@ const nextPage = async (): Promise<void> => {
 
 // 线程点击处理
 const onThreadClicked = (id: string | number): void => {
-  emit('threadClicked', id);
+  emit('openThread', id);
 };
 
 // 生命周期
@@ -197,7 +197,7 @@ const onScroll = (target: any) => {
               <h3>回复</h3>
               <div class="reply-list">
                 <div v-if="returnData2 == undefined">还没有回复</div>
-                <UserReply @ThreadClicked="onThreadClicked(item.threadId)" v-for="item in returnData2" msg=""
+                <UserReply @openThread="onThreadClicked(item.threadId)" v-for="item in returnData2" msg=""
                   :user_name="item.nameShow + ' (' + item.userName + ')'" :thread_title="item.title"
                   :avatar="item.userPortrait" :media="item.content" :create_time="0" :threadId="item.threadId">
                 </UserReply>
@@ -209,7 +209,7 @@ const onScroll = (target: any) => {
                 <h3>关注的吧</h3>
                 <div class="bar-buttons">
                   <div class="bar-button" v-for="item in FollowBarList"
-                    @click="emit('barNameClicked', item.forum_name)">
+                    @click="emit('openBar', item.forum_name)">
                     <span class="bar-name">{{ item.forum_name }} </span>
                     <span class="level"
                       :class="{ 'color1': Number(item.level_id) >= 0 && Number(item.level_id) < 4, 'color2': Number(item.level_id) >= 4 && Number(item.level_id) < 10, 'color3': Number(item.level_id) >= 10 && Number(item.level_id) < 16, 'color4': Number(item.level_id) > 16 }">{{

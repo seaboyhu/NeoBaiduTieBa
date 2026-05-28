@@ -7,9 +7,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (event: 'threadClick', id: string): void;
-  (event: 'barNameClicked', barName: string): void;
-  (event: 'userNameClicked', uid: string): void;
+  (event: 'openThread', id: string): void;
+  (event: 'openBar', barName: string): void;
+  (event: 'openUser', uid: string): void;
 }>();
 
 const updateTabMeta = inject<(info: { key: string | number; title: string; icon: string }) => void>('updateTabMeta');
@@ -22,16 +22,16 @@ onMounted(() => {
 
 function openItem(item: HistoryItem): void {
   if (item.type === 'thread') {
-    emit('threadClick', item.target);
+    emit('openThread', item.target);
     return;
   }
 
   if (item.type === 'bar') {
-    emit('barNameClicked', item.target);
+    emit('openBar', item.target);
     return;
   }
 
-  emit('userNameClicked', item.target);
+  emit('openUser', item.target);
 }
 
 function formatTime(timestamp: number): string {

@@ -16,8 +16,8 @@ interface Props {
 
 interface Emits {
   (e: 'setTabInfo', info: { key: string | number; title: string; icon: string }): void;
-  (e: 'UserNameClicked', uid: string | number): void;
-  (e: 'barNameClicked', barName: string): void;
+  (e: 'openUser', uid: string | number): void;
+  (e: 'openBar', barName: string): void;
 }
 
 interface User {
@@ -213,12 +213,12 @@ const onScroll = (target: HTMLElement): void => {
 
 // 用户名点击
 const onUserNameClicked = (uid: string | number): void => {
-  emit('UserNameClicked', uid);
+  emit('openUser', uid);
 };
 
 // 吧名点击
-const barNameClicked = (barName: string): void => {
-  emit('barNameClicked', barName);
+const openBar = (barName: string): void => {
+  emit('openBar', barName);
 };
 
 // 下一页
@@ -245,7 +245,7 @@ const ViewAllReplie = (data: SubPostInfo): void => {
             <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
               <RippleButton v-if="returnData.data"
                 style="background-color: transparent; box-shadow: none; padding: 0; border-radius: 100px;"
-                @click="barNameClicked(returnData.data.forum.name)">
+                @click="openBar(returnData.data.forum.name)">
                 <div
                   style="display: flex; align-items: center; gap: 10px; background-color: rgba(var(--text-color), 0.1); padding: 5px 8px;">
                   <img :src="returnData.data.forum.avatar" class="avatar" referrerpolicy="no-referrer">
@@ -261,7 +261,7 @@ const ViewAllReplie = (data: SubPostInfo): void => {
           </h3>
           <Reply v-for="item in threadList" :key="item.id" :like="item.agree.agreeNum - item.agree.disagreeNum"
             :user_name="item.author?.nameShow || item.author?.name || '匿名用户'" :uid="item.authorId"
-            @userNameClicked="onUserNameClicked" :avatar="item.author?.portrait || 'default'"
+            @openUser="onUserNameClicked" :avatar="item.author?.portrait || 'default'"
             :thread_content="item.content?.length === 0 || !Array.isArray(item.content) ? [{ type: 0, text: threadTitle }] : item.content"
             :create_time="item.time" :reply_num="item.subPostNumber" :tid="String(tid)" :pid="String(item.id)"
             :floor="item.floor" :is_lz="item.authorId === threadList[0]?.authorId" :level="item.author?.levelId || 0"
@@ -272,7 +272,7 @@ const ViewAllReplie = (data: SubPostInfo): void => {
       </div>
     </transition>
     <Drawer ctitle="查看楼中楼" width="450px" :top_position="false">
-      <ReplyView v-if="isDrawerOpen.state" v-bind="currentSubPostInfo" @userNameClicked="onUserNameClicked"></ReplyView>
+      <ReplyView v-if="isDrawerOpen.state" v-bind="currentSubPostInfo" @openUser="onUserNameClicked"></ReplyView>
     </Drawer>
     <transition name="fade1">
       <div v-if="isDeleted" style="width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; border-radius: 5px;

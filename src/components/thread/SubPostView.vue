@@ -1,7 +1,7 @@
 <template>
   <Container @yscroll="onScroll" style="background-color: transparent;">
     <div class="thread" @click.stop>
-      <div class="user-info" @click="userNameClicked(props.uid)">
+      <div class="user-info" @click="openUser(props.uid)">
         <div class="avatar"><img class="avatar"
             :src="'https://gss0.bdstatic.com/6LZ1dD3d1sgCo2Kml5_Y_D3/sys/portrait/item/' + avatar"></div>
         <div>
@@ -28,7 +28,7 @@
 
         </div>
         <div class="subpost" v-if="reply_num > 0">
-          <SubPost v-for="item in subpost_list" :thread_content="item.content" @userNameClicked="userNameClicked"
+          <SubPost v-for="item in subpost_list" :thread_content="item.content" @openUser="openUser"
             :avatar="item.author.portrait" :uid="item.author.id" :user_name="item.author.name_show || item.author.name">
           </SubPost>
         </div>
@@ -65,7 +65,7 @@ interface Props {
 }
 
 interface Emits {
-  (e: 'userNameClicked', uid: string | number): void;
+  (e: 'openUser', uid: string | number): void;
 }
 
 interface ContentElement {
@@ -110,8 +110,8 @@ const create_time1: Ref<string> = ref<string>('');
 let pageInfo: PageInfo | null = null;
 
 // Methods
-const userNameClicked = (uid: string | number): void => {
-  emit('userNameClicked', uid);
+const openUser = (uid: string | number): void => {
+  emit('openUser', uid);
 };
 
 const onScroll = (target: { scrollTop: number; clientHeight: number; scrollHeight: number }): void => {
@@ -147,7 +147,7 @@ const handleClick = (event: MouseEvent): void => {
   if (target.classList.contains('at-button')) {
     const uid = target.getAttribute('uid');
     if (uid) {
-      emit('userNameClicked', uid);
+      emit('openUser', uid);
     }
   }
 };

@@ -1,6 +1,6 @@
 <template>
   <div class="thread" @click.stop>
-    <div class="user-info" @click="userNameClicked(props.uid as string | number)">
+    <div class="user-info" @click="openUser(props.uid as string | number)">
       <div class="avatar"><img class="avatar"
           :src="'https://gss0.bdstatic.com/6LZ1dD3d1sgCo2Kml5_Y_D3/sys/portrait/item/' + avatar"
           referrerpolicy="no-referrer"></div>
@@ -29,7 +29,7 @@
 
       </div>
       <div class="subpost" v-if="reply_num > 0">
-        <SubPost v-for="item in subpost_list" :thread_content="item.content" @userNameClicked="userNameClicked"
+        <SubPost v-for="item in subpost_list" :thread_content="item.content" @openUser="openUser"
           :avatar="item.author.portrait" :uid="item.author.id" :user_name="item.author.name_show || item.author.name">
         </SubPost>
         <RippleButton v-if="reply_num > 5" @click="emit('viewAllReplies', props)"
@@ -71,7 +71,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  (e: 'userNameClicked', uid: string | number): void;
+  (e: 'openUser', uid: string | number): void;
   (e: 'viewAllReplies', data: Props): void;
 }>();
 
@@ -79,8 +79,8 @@ const openImageViewer = inject<((url: string) => void) | undefined>('openImageVi
 const content = ref('')
 const subpost_list = ref<any[]>([])
 
-const userNameClicked = (uid: string | number) => {
-  emit('userNameClicked', uid);
+const openUser = (uid: string | number) => {
+  emit('openUser', uid);
 }
 
 const handleClick = (event: any) => {
@@ -90,7 +90,7 @@ const handleClick = (event: any) => {
     }
   }
   if (event.target.classList.contains('at-button')) {
-    emit('userNameClicked', event.target.getAttribute('uid'));
+    emit('openUser', event.target.getAttribute('uid'));
   }
 }
 
